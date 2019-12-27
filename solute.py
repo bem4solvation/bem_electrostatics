@@ -2,6 +2,7 @@ import re
 import bempp.api
 import os
 import numpy as np
+import time
 import bem_electrostatics.mesh_tools.mesh_tools as mesh_tools
 import bem_electrostatics.utils as utils
 import bem_electrostatics.pb_formulation as pb_formulation
@@ -11,7 +12,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4):
+    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -21,6 +22,7 @@ class solute():
         self.mesh_build_files_dir = mesh_build_files_dir
         self.mesh_density = mesh_density
         self.mesh_probe_radius = mesh_probe_radius
+        self.mesh_generator = mesh_generator
 
         file_extention = solute_file_path.split(".")[-1]
         if file_extention == "pdb":
@@ -41,7 +43,7 @@ class solute():
         self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
         self.pb_formulation = "direct"
 
-        self.ep_in = 1.0
+        self.ep_in = 4.0
         self.ep_ex = 80.0
         self.kappa = 0.125
 
@@ -55,24 +57,30 @@ class solute():
 
 
     def calculate_potential(self):
+        start_time = time.time()
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
         neumann_space = bempp.api.function_space(self.mesh, "P", 1)
 
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
-
+        
+        matrix_start_time = time.time()
         if self.pb_formulation == "juffer":
             A, rhs = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "direct":
             A, rhs = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
             A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+        print('It took ', time.time()-matrix_start_time, ' seconds to compute the matrix system')
 
+        gmres_start_time = time.time()
         x, info, it_count = utils.solver(A, rhs, self.gmres_tolerance, self.gmres_max_iterations)
+        print('It took ', time.time()-gmres_start_time, ' seconds to resolve the system')
 
         self.solver_iteration_count = it_count
         self.phi = x[:dirichl_space.global_dof_count]
         self.d_phi = x[dirichl_space.global_dof_count:]
+        print('It took ', time.time()-start_time, ' seconds to compute the potential')
 
 
 
@@ -81,7 +89,8 @@ class solute():
             #print("You must first calulate the potential (solute.calculate_potential)")
             #call calulate potential here
             self.calculate_potential()
-
+            
+        start_time = time.time()
         dirichl_space = self.dirichl_space
         neumann_space = self.neumann_space
 
@@ -98,6 +107,7 @@ class solute():
         total_energy = 2*np.pi*332.064*np.sum(self.q*phi_q).real
 
         self.solvation_energy = total_energy
+        print('It took ', time.time()-start_time, ' seconds to compute the solvatation energy')
 
 
 
@@ -133,7 +143,14 @@ def generate_msms_mesh_import_charges(solute):
 
     mesh_face_path = mesh_dir+solute.solute_name+".face"
     mesh_vert_path = mesh_dir+solute.solute_name+".vert"
-    mesh_tools.generate_msms_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius)
+    
+    if solute.mesh_generator == "msms":
+        mesh_tools.generate_msms_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius)
+    elif solute.mesh_generator == "nanoshaper":
+        mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius, solute.save_mesh_build_files)
+        
+    mesh_off_path = mesh_dir+solute.solute_name+".off"
+    mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
 
     grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
     q, x_q = utils.import_charges(mesh_pqr_path)
@@ -144,12 +161,14 @@ def generate_msms_mesh_import_charges(solute):
         solute.mesh_xyzr_path = mesh_xyzr_path
         solute.mesh_face_path = mesh_face_path
         solute.mesh_vert_path = mesh_vert_path
+        solute.mesh_off_path = mesh_off_path
     else:
         if solute.imported_file_type == "pdb":
             os.remove(mesh_pqr_path)
         os.remove(mesh_xyzr_path)
         os.remove(mesh_face_path)
         os.remove(mesh_vert_path)
+        os.remove(mesh_off_path)
         os.rmdir(mesh_dir)
 
     return grid, q, x_q

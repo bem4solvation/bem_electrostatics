@@ -32,9 +32,66 @@ def convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path):
     for face in faces:
         data.write("3"+"\t"+str(face[0])+"\t"+str(face[1])+"\t"+str(face[2])+"\n")
     
-def generate_msms_mesh(mesh_xyzr_path, output_dir, output_name, density, probeRadius):
-    command = "msms -if "+mesh_xyzr_path+" -of "+output_dir+output_name+" -p "+str(probeRadius)+" -d "+str(density)+" -no_header"
+def generate_msms_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius):
+    command = "msms -if "+mesh_xyzr_path+" -of "+output_dir+output_name+" -p "+str(probe_radius)+" -d "+str(density)+" -no_header"
     os.system(command)
+    
+def generate_nanoshaper_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius, save_mesh_build_files):
+    # Directories
+    nano_dir = '/home/stefansearch/bem_electrostatics/ExternalSoftware/NanoShaper/'
+    mesh_dir = "/home/stefansearch/"+output_dir
+    nano_temp_dir = "/home/stefansearch/"+output_dir+"nano/"
+
+    if not os.path.exists(nano_temp_dir):
+        os.makedirs(nano_temp_dir)
+
+
+    # Execute NanoShaper
+    config_template_file = open(nano_dir+'config', 'r')
+    config_file = open(nano_temp_dir + 'surfaceConfiguration.prm', 'w')
+    for line in config_template_file:
+        if 'XYZR_FileName' in line:
+            line = 'XYZR_FileName = ' + mesh_dir + output_name + '.xyzr \n'
+        elif 'Grid_scale' in line:
+            line = 'Grid_scale = {:04.1f} \n'.format(density)
+        elif 'Probe_Radius' in line:
+            line = 'Probe_Radius = {:03.1f} \n'.format(probe_radius)
+
+        config_file.write(line)
+
+    config_file.close()
+    config_template_file.close()
+
+    os.chdir(nano_temp_dir)
+    os.system(nano_dir+"NanoShaper")
+    
+    #os.rename("triangulatedSurf.vert", output_name+".vert")
+    #os.rename("triangulatedSurf.face", output_name+".face")
+    
+    os.chdir('..')
+    os.system('mv ' + nano_temp_dir + '*.vert ' + output_name + '.vert')
+    os.system('mv ' + nano_temp_dir + '*.face ' + output_name + '.face')
+    
+    vert_file = open( output_name + '.vert', 'r' )
+    vert = vert_file.readlines()
+    vert_file.close()
+    face_file = open( output_name + '.face', 'r' )
+    face = face_file.readlines()
+    face_file.close()
+    
+    os.remove(output_name + '.vert')
+    os.remove(output_name + '.face')  
+
+    vert_file = open( output_name + '.vert', 'w' )
+    vert_file.write( ''.join( vert[3:] ) )
+    vert_file.close()
+    face_file = open( output_name + '.face', 'w' )
+    face_file.write( ''.join( face[3:] ) )
+    face_file.close()
+    
+    #os.system('rm -r ' + mesh_dir)
+    os.chdir('..')
+    
     
 def import_msms_mesh(mesh_face_path, mesh_vert_path):
     face = open(mesh_face_path,'r').read()
