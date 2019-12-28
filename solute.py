@@ -41,6 +41,7 @@ class solute():
 
 
         self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
+        self.mesh_elements = self.mesh.leaf_view.entity_count(0)
         self.pb_formulation = "direct"
 
         self.ep_in = 4.0
@@ -71,16 +72,24 @@ class solute():
             A, rhs = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
             A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+            
         print('It took ', time.time()-matrix_start_time, ' seconds to compute the matrix system')
+        self.time_matrix_system = time.time()-matrix_start_time
 
+        
         gmres_start_time = time.time()
         x, info, it_count = utils.solver(A, rhs, self.gmres_tolerance, self.gmres_max_iterations)
+        
         print('It took ', time.time()-gmres_start_time, ' seconds to resolve the system')
+        self.time_gmres = time.time()-gmres_start_time
 
+        
         self.solver_iteration_count = it_count
         self.phi = x[:dirichl_space.global_dof_count]
         self.d_phi = x[dirichl_space.global_dof_count:]
+        
         print('It took ', time.time()-start_time, ' seconds to compute the potential')
+        self.time_compue_potential = time.time()-start_time
 
 
 
@@ -108,6 +117,8 @@ class solute():
 
         self.solvation_energy = total_energy
         print('It took ', time.time()-start_time, ' seconds to compute the solvatation energy')
+        self.time_calc_energy = time.time()-start_time
+        
 
 
 
