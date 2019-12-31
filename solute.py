@@ -12,7 +12,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper"):
+    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -23,6 +23,8 @@ class solute():
         self.mesh_density = mesh_density
         self.mesh_probe_radius = mesh_probe_radius
         self.mesh_generator = mesh_generator
+        
+        self.print_times = print_times
 
         file_extention = solute_file_path.split(".")[-1]
         if file_extention == "pdb":
@@ -37,7 +39,6 @@ class solute():
 
         else:
             print("File is not pdb or pqr -> Cannot start")
-
 
 
         self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
@@ -56,7 +57,6 @@ class solute():
                 
 
 
-
     def calculate_potential(self):
         start_time = time.time()
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
@@ -71,31 +71,32 @@ class solute():
         elif self.pb_formulation == "direct":
             A, rhs = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
-            
-        print('It took ', time.time()-matrix_start_time, ' seconds to compute the matrix system')
+            A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)   
         self.time_matrix_system = time.time()-matrix_start_time
 
         
         gmres_start_time = time.time()
         x, info, it_count = utils.solver(A, rhs, self.gmres_tolerance, self.gmres_max_iterations)
-        
-        print('It took ', time.time()-gmres_start_time, ' seconds to resolve the system')
         self.time_gmres = time.time()-gmres_start_time
-
+        
         
         self.solver_iteration_count = it_count
         self.phi = x[:dirichl_space.global_dof_count]
         self.d_phi = x[dirichl_space.global_dof_count:]
         
-        print('It took ', time.time()-start_time, ' seconds to compute the potential')
+        
         self.time_compue_potential = time.time()-start_time
+        
+        
+        if self.print_times:
+            print('It took ', self.time_matrix_system, ' seconds to compute the matrix system')
+            print('It took ', self.time_gmres, ' seconds to resolve the system')
+            print('It took ', self.time_compue_potential, ' seconds to compute the potential')
 
 
 
     def calculate_solvation_energy(self):
         if not hasattr(self, 'phi'):
-            #print("You must first calulate the potential (solute.calculate_potential)")
             #call calulate potential here
             self.calculate_potential()
             
@@ -116,10 +117,11 @@ class solute():
         total_energy = 2*np.pi*332.064*np.sum(self.q*phi_q).real
 
         self.solvation_energy = total_energy
-        print('It took ', time.time()-start_time, ' seconds to compute the solvatation energy')
-        self.time_calc_energy = time.time()-start_time
         
-
+        self.time_calc_energy = time.time()-start_time
+        if self.print_times:
+            print('It took ', self.time_calc_energy, ' seconds to compute the solvatation energy')
+        
 
 
     def mesh_info(self):
@@ -127,7 +129,6 @@ class solute():
 
         number_of_elements = self.mesh.leaf_view.entity_count(0)
         print("{0} elements".format(number_of_elements))
-
 
 
 
@@ -183,6 +184,8 @@ def generate_msms_mesh_import_charges(solute):
         os.rmdir(mesh_dir)
 
     return grid, q, x_q
+
+
 
 def get_name_from_pdb(pdb_path):
     pdb_file = open(pdb_path)
