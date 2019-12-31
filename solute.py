@@ -12,11 +12,13 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False):
+    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
             return
+        
+        self.force_field = force_field
 
         self.save_mesh_build_files = save_mesh_build_files
         self.mesh_build_files_dir = mesh_build_files_dir
@@ -146,7 +148,7 @@ def generate_msms_mesh_import_charges(solute):
 
     if solute.imported_file_type == "pdb":
         mesh_pqr_path = mesh_dir+solute.solute_name+".pqr"
-        mesh_tools.convert_pdb2pqr(solute.pdb_path, mesh_pqr_path)
+        mesh_tools.convert_pdb2pqr(solute.pdb_path, mesh_pqr_path, solute.force_field)
     else:
         mesh_pqr_path = solute.pqr_path
 

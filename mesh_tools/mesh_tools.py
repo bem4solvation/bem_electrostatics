@@ -3,8 +3,8 @@ import subprocess
 import os
 import bempp.api
 
-def convert_pdb2pqr(mesh_pdb_path, mesh_pqr_path):       
-    subprocess.call(["python", "/home/chris/Software/apbs-pdb2pqr/pdb2pqr/pdb2pqr.py", "--ff=amber", mesh_pdb_path, mesh_pqr_path])
+def convert_pdb2pqr(mesh_pdb_path, mesh_pqr_path, force_field):       
+    subprocess.call(["python", "/home/chris/Software/apbs-pdb2pqr/pdb2pqr/pdb2pqr.py", "--ff="+force_field, mesh_pdb_path, mesh_pqr_path])
     
 def convert_pqr2xyzr(mesh_pqr_path, mesh_xyzr_path):
     pqr_file = open(mesh_pqr_path, 'r')
