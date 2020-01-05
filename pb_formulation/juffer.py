@@ -29,7 +29,8 @@ def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa):
     blocked[0, 1] = -L2
     blocked[1, 0] = L3    # Cambio de signo por definicion de bempp
     blocked[1, 1] = 0.5*(1. + 1./ep)*dph_id - L4
-    A = blocked.strong_form()
+    #A = blocked.strong_form()
+    A = blocked
 
     def d_green_func(x, n, domain_index, result):
         const = -1./(4.*np.pi*ep_in)

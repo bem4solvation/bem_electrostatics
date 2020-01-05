@@ -59,7 +59,7 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, alpha
     Id[1, 1] = dph_id
 
     A = ((0.5*Id)+A_in)+(D*((0.5*Id)-A_out)*E)-(Id+F)
-    A = A.strong_form()
+    #A = A.strong_form()
 
     def d_green_func(x, n, domain_index, result):
         const = -1./(4.*np.pi*ep_in)

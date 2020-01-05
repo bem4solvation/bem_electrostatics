@@ -16,7 +16,8 @@ def direct(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa):
     blocked[0, 1] = -slp_in
     blocked[1, 0] = 0.5*identity - dlp_out
     blocked[1, 1] = (ep_in/ep_out)*slp_out
-    A = blocked.strong_form()
+    #A = blocked.strong_form()
+    A = blocked
     
     def charges_fun(x, n, domain_index, result):
         result[:] = np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4*np.pi*ep_in)

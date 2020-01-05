@@ -74,11 +74,15 @@ class solute():
             A, rhs = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
             A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)   
-        self.time_matrix_system = time.time()-matrix_start_time
-
         
+        
+        #A_strong = A.strong_form(recompute=True)
+        A_strong = A.strong_form()
+        self.time_matrix_system = time.time()-matrix_start_time
+        
+
         gmres_start_time = time.time()
-        x, info, it_count = utils.solver(A, rhs, self.gmres_tolerance, self.gmres_max_iterations)
+        x, info, it_count = utils.solver(A_strong, rhs, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
         
