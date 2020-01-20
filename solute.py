@@ -44,7 +44,7 @@ class solute():
 
 
         self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
-        self.mesh_elements = self.mesh.leaf_view.entity_count(0)
+        self.mesh_elements = self.mesh.number_of_elements
         self.pb_formulation = "direct"
 
         self.ep_in = 4.0
@@ -78,6 +78,7 @@ class solute():
         
         #A_strong = A.strong_form(recompute=True)
         A_strong = A.strong_form()
+        #print(bempp.api.hmatrix_interface.mem_size(A_strong)+" kB of memory for A strong")
         self.time_matrix_system = time.time()-matrix_start_time
         
 
@@ -133,7 +134,7 @@ class solute():
     def mesh_info(self):
         print("The grid has:")
 
-        number_of_elements = self.mesh.leaf_view.entity_count(0)
+        number_of_elements = self.mesh.number_of_elements
         print("{0} elements".format(number_of_elements))
 
 
@@ -170,7 +171,8 @@ def generate_msms_mesh_import_charges(solute):
     mesh_off_path = mesh_dir+solute.solute_name+".off"
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
 
-    grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
+    #grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
+    grid = mesh_tools.import_off_mesh(mesh_off_path)
     q, x_q = utils.import_charges(mesh_pqr_path)
 
     if solute.save_mesh_build_files:

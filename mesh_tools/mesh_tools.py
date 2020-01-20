@@ -26,11 +26,11 @@ def convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path):
 
     data = open(mesh_off_path, 'w')
     data.write("OFF"+"\n")
-    data.write(str(verts.shape[0])+"\t"+str(faces.shape[0])+"\n")
+    data.write(str(verts.shape[0])+" "+str(faces.shape[0])+" "+str(0)+"\n")
     for vert in verts:
-        data.write(str(vert[0])+"\t"+str(vert[1])+"\t"+str(vert[2])+"\n")
+        data.write(str(vert[0])+" "+str(vert[1])+" "+str(vert[2])+"\n")
     for face in faces:
-        data.write("3"+"\t"+str(face[0])+"\t"+str(face[1])+"\t"+str(face[2])+"\n")
+        data.write("3"+" "+str(face[0])+" "+str(face[1])+" "+str(face[2])+"\n")
     
 def generate_msms_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius):
     command = "msms -if "+mesh_xyzr_path+" -of "+output_dir+output_name+" -p "+str(probe_radius)+" -d "+str(density)+" -no_header"
@@ -101,4 +101,8 @@ def import_msms_mesh(mesh_face_path, mesh_vert_path):
     verts = np.vstack(np.char.split(vert.split('\n')[0:-1]))[:,:3].astype(float)
 
     grid = bempp.api.grid_from_element_data(verts.transpose(), faces.transpose())
+    return grid
+
+def import_off_mesh(mesh_off_path):
+    grid = bempp.api.import_grid(mesh_off_path)
     return grid
