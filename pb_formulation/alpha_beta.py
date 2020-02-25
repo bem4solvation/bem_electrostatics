@@ -60,17 +60,39 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, alpha
 
     A = ((0.5*Id)+A_in)+(D*((0.5*Id)-A_out)*E)-(Id+F)
     #A = A.strong_form()
+    print("Got A")
     
     @bempp.api.real_callable
     def d_green_func(x, n, domain_index, result):
+        
+        F = (x-x_q)
+        z = np.zeros(F.shape[0], dtype=np.float64)
+        for i in range(F.shape[0]):
+            nrm = np.linalg.norm(F[i, :])
+            z[i] = nrm
+    
+        #result[:] = np.sum(q/x)/(4*np.pi*ep_in)
+        
         const = -1./(4.*np.pi*ep_in)
         result[:] = (-1.0)*const*np.sum(q*np.dot( x - x_q, n )/(np.linalg.norm( x - x_q, axis=1 )**3))
+        #result[:] = (-1.0)*const*np.sum(q*np.dot(x-x_q, n)/(z**3))
 
+    @bempp.api.real_callable
     def green_func(x, n, domain_index, result):
+        F = (x-x_q)
+        z = np.zeros(F.shape[0], dtype=np.float64)
+        for i in range(F.shape[0]):
+            nrm = np.linalg.norm(F[i, :])
+            z[i] = nrm
+            
         result[:] = (-1.0)*np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4.*np.pi*ep_in)
+        #result[:] = (-1.0)*np.sum(q/z)/(4.*np.pi*ep_in)
 
+    print("start RHS1")
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    print("start RHS2")
     rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
-    rhs = np.concatenate([rhs_1.coefficients, rhs_2.coefficients])
+    #rhs = np.concatenate([rhs_1.coefficients, rhs_2.coefficients])
+    print("RHS done")
 
-    return A, rhs
+    return A, rhs_1, rhs_2

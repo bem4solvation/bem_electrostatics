@@ -18,15 +18,25 @@ def direct(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa):
     blocked[1, 1] = (ep_in/ep_out)*slp_out
     #A = blocked.strong_form()
     A = blocked
+   
     
+    @bempp.api.real_callable
     def charges_fun(x, n, domain_index, result):
-        result[:] = np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4*np.pi*ep_in)
+        
+        F = (x-x_q)
+        x = np.zeros(F.shape[0], dtype=np.float64)
+        for i in range(F.shape[0]):
+            nrm = np.linalg.norm(F[i, :])
+            x[i] = nrm
+    
+        #result[:] = np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4*np.pi*ep_in)
+        result[:] = np.sum(q/x)/(4*np.pi*ep_in)
 
+    @bempp.api.real_callable
     def zero(x, n, domain_index, result):
         result[:] = 0
 
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=charges_fun)
     rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
-    rhs = np.concatenate([rhs_1.coefficients, rhs_2.coefficients])
 
-    return A, rhs
+    return A, rhs_1, rhs_2

@@ -6,6 +6,10 @@ import time
 import bem_electrostatics.mesh_tools.mesh_tools as mesh_tools
 import bem_electrostatics.utils as utils
 import bem_electrostatics.pb_formulation as pb_formulation
+from bempp.api.assembly.blocked_operator import (
+        coefficients_from_grid_functions_list,
+        grid_function_list_from_coefficients,
+    )
 
 class solute():
     """The basic Solute object
@@ -69,31 +73,36 @@ class solute():
         
         matrix_start_time = time.time()
         if self.pb_formulation == "juffer":
-            A, rhs = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
+            A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "direct":
-            A, rhs = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
+            A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)   
+            A, rhs_1, rhs_2 = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)   
         
         
-        #A_strong = A.strong_form(recompute=True)
+        
+        print("pass to strong form")
         A_strong = A.strong_form()
-        #print(bempp.api.hmatrix_interface.mem_size(A_strong)+" kB of memory for A strong")
         self.time_matrix_system = time.time()-matrix_start_time
+        print("finished strong form")
         
-
+        print("construct RHS")
+        rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
+        
+        print("Start gmres")
         gmres_start_time = time.time()
+        #(neumann_solution, dirichlet_solution), _ , it_count = bempp.api.linalg.gmres(A, [rhs1, rhs2], tol=1e-5, use_strong_form=True, return_iteration_count=True)
         x, info, it_count = utils.solver(A_strong, rhs, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
+        print("split sols")
+        (neumann_solution, dirichlet_solution) = grid_function_list_from_coefficients(x.ravel(), A.domain_spaces)
         
         self.solver_iteration_count = it_count
-        self.phi = x[:dirichl_space.global_dof_count]
-        self.d_phi = x[dirichl_space.global_dof_count:]
-        
+        self.phi = dirichlet_solution
+        self.d_phi = neumann_solution
         
         self.time_compue_potential = time.time()-start_time
-        
         
         if self.print_times:
             print('It took ', self.time_matrix_system, ' seconds to compute the matrix system')
@@ -111,8 +120,11 @@ class solute():
         dirichl_space = self.dirichl_space
         neumann_space = self.neumann_space
 
-        solution_dirichl = bempp.api.GridFunction(dirichl_space, coefficients=self.phi)
-        solution_neumann = bempp.api.GridFunction(neumann_space, coefficients=self.d_phi)
+        #solution_dirichl = bempp.api.GridFunction(dirichl_space, coefficients=self.phi)
+        #solution_neumann = bempp.api.GridFunction(neumann_space, coefficients=self.d_phi)
+        
+        solution_dirichl = self.phi
+        solution_neumann = self.d_phi
 
         from bempp.api.operators.potential.laplace import single_layer, double_layer
 
