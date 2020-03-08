@@ -3,8 +3,8 @@ import subprocess
 import os
 import bempp.api
 
-def convert_pdb2pqr(mesh_pdb_path, mesh_pqr_path, force_field):       
-    subprocess.call(["python", "/home/chris/Software/apbs-pdb2pqr/pdb2pqr/pdb2pqr.py", "--ff="+force_field, mesh_pdb_path, mesh_pqr_path])
+def convert_pdb2pqr(mesh_pdb_path, mesh_pqr_path, force_field):
+    subprocess.call(["python2", "/home/chris/Software/apbs-pdb2pqr/pdb2pqr/pdb2pqr.py", "--ff="+force_field, mesh_pdb_path, mesh_pqr_path])
     
 def convert_pqr2xyzr(mesh_pqr_path, mesh_xyzr_path):
     pqr_file = open(mesh_pqr_path, 'r')
@@ -100,7 +100,8 @@ def import_msms_mesh(mesh_face_path, mesh_vert_path):
     faces = np.vstack(np.char.split(face.split('\n')[0:-1]))[:,:3].astype(int) - 1
     verts = np.vstack(np.char.split(vert.split('\n')[0:-1]))[:,:3].astype(float)
 
-    grid = bempp.api.grid_from_element_data(verts.transpose(), faces.transpose())
+    #grid = bempp.api.grid_from_element_data(verts.transpose(), faces.transpose())
+    grid = bempp.api.Grid(verts.transpose(), faces.transpose())
     return grid
 
 def import_off_mesh(mesh_off_path):
