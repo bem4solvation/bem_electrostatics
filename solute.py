@@ -91,12 +91,10 @@ class solute():
         
         print("Start gmres")
         gmres_start_time = time.time()
-        #(neumann_solution, dirichlet_solution), _ , it_count = bempp.api.linalg.gmres(A, [rhs1, rhs2], tol=1e-5, use_strong_form=True, return_iteration_count=True)
         x, info, it_count = utils.solver(A_strong, rhs, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
-        print("split sols")
-        (neumann_solution, dirichlet_solution) = grid_function_list_from_coefficients(x.ravel(), A.domain_spaces)
+        (dirichlet_solution, neumann_solution) = grid_function_list_from_coefficients(x.ravel(), A.domain_spaces)
         
         self.solver_iteration_count = it_count
         self.phi = dirichlet_solution
@@ -183,8 +181,8 @@ def generate_msms_mesh_import_charges(solute):
     mesh_off_path = mesh_dir+solute.solute_name+".off"
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
 
-    #grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
-    grid = mesh_tools.import_off_mesh(mesh_off_path)
+    grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
+    #grid = mesh_tools.import_off_mesh(mesh_off_path)
     q, x_q = utils.import_charges(mesh_pqr_path)
 
     if solute.save_mesh_build_files:
