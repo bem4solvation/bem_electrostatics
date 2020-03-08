@@ -22,19 +22,14 @@ def direct(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa):
     
     @bempp.api.real_callable
     def charges_fun(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
+        aux = np.sum(q/nrm)
         
-        F = (x-x_q)
-        x = np.zeros(F.shape[0], dtype=np.float64)
-        for i in range(F.shape[0]):
-            nrm = np.linalg.norm(F[i, :])
-            x[i] = nrm
-    
-        #result[:] = np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4*np.pi*ep_in)
-        result[:] = np.sum(q/x)/(4*np.pi*ep_in)
-
+        result[0] = aux/(4*np.pi*ep_in)
+        
     @bempp.api.real_callable
     def zero(x, n, domain_index, result):
-        result[:] = 0
+        result[0] = 0
 
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=charges_fun)
     rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)

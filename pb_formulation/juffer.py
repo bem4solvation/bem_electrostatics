@@ -34,29 +34,16 @@ def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa):
 
     @bempp.api.real_callable
     def d_green_func(x, n, domain_index, result):
-        
-        F = (x-x_q)
-        z = np.zeros(F.shape[0], dtype=np.float64)
-        for i in range(F.shape[0]):
-            nrm = np.linalg.norm(F[i, :])
-            z[i] = nrm
-    
-        #result[:] = np.sum(q/x)/(4*np.pi*ep_in)
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
         
         const = -1./(4.*np.pi*ep_in)
-        #result[:] = (-1.0)*const*np.sum(q*np.dot( x - x_q, n )/(np.linalg.norm( x - x_q, axis=1 )**3))
-        result[:] = (-1.0)*const*np.sum(q*np.dot(x-x_q, n)/(z**3))
+        result[:] = (-1.0)*const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
 
     @bempp.api.real_callable
     def green_func(x, n, domain_index, result):
-        F = (x-x_q)
-        z = np.zeros(F.shape[0], dtype=np.float64)
-        for i in range(F.shape[0]):
-            nrm = np.linalg.norm(F[i, :])
-            z[i] = nrm
-            
-        #result[:] = (-1.0)*np.sum(q/np.linalg.norm( x - x_q, axis=1 ))/(4.*np.pi*ep_in)
-        result[:] = (-1.0)*np.sum(q/z)/(4.*np.pi*ep_in)
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
+        
+        result[:] = (-1.0)*np.sum(q/nrm)/(4.*np.pi*ep_in)
 
         
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
