@@ -60,10 +60,13 @@ class solute():
         
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
+        
+        #bempp.api.set_default_device(0,0)
+        print(bempp.api.default_device())
                 
 
 
-    def calculate_potential(self):
+    def calculate_potential(self):        
         start_time = time.time()
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
         neumann_space = bempp.api.function_space(self.mesh, "P", 1)
