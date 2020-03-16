@@ -8,6 +8,7 @@ import bem_electrostatics.utils as utils
 import bem_electrostatics.pb_formulation as pb_formulation
 from bempp.api.assembly.blocked_operator import (
         coefficients_from_grid_functions_list,
+        projections_from_grid_functions_list,
         grid_function_list_from_coefficients,
     )
 
@@ -61,7 +62,7 @@ class solute():
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
         
-        #bempp.api.set_default_device(0,0)
+        bempp.api.set_default_device(0,0)
         print(bempp.api.default_device())
                 
 
@@ -85,12 +86,14 @@ class solute():
         
         
         print("pass to strong form")
-        A_strong = A.strong_form()
+        #A_strong = A.strong_form()
+        A_strong = A.weak_form()
         self.time_matrix_system = time.time()-matrix_start_time
         print("finished strong form")
         
         print("construct RHS")
-        rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
+        #rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
+        rhs = projections_from_grid_functions_list([rhs_1, rhs_2], A.dual_to_range_spaces)
         
         print("Start gmres")
         gmres_start_time = time.time()
