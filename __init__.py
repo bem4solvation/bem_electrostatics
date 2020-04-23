@@ -1,3 +1,6 @@
 import bempp.api
+import os
 from bem_electrostatics.solute import solute
-from bem_electrostatics.mesh_tools import mesh_tools
+
+BEM_ELECTROSTATICS_PATH = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+#WORKING_PATH = os.getcwd()

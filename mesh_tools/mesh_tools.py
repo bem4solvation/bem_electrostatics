@@ -37,21 +37,23 @@ def generate_msms_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_r
     os.system(command)
     
 def generate_nanoshaper_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius, save_mesh_build_files):
-    # Directories
-    nano_dir = '/home/stefansearch/bem_electrostatics/ExternalSoftware/NanoShaper/'
-    mesh_dir = "/home/stefansearch/"+output_dir
-    nano_temp_dir = "/home/stefansearch/"+output_dir+"nano/"
+    from bem_electrostatics import BEM_ELECTROSTATICS_PATH
+    
+    nanoshaper_dir = os.path.join(BEM_ELECTROSTATICS_PATH, "ExternalSoftware/NanoShaper/")
+    nanoshaper_temp_dir = os.path.join(output_dir, "nano/")
+    mesh_dir = output_dir
 
-    if not os.path.exists(nano_temp_dir):
-        os.makedirs(nano_temp_dir)
+    if not os.path.exists(nanoshaper_temp_dir):
+        os.makedirs(nanoshaper_temp_dir)
 
 
     # Execute NanoShaper
-    config_template_file = open(nano_dir+'config', 'r')
-    config_file = open(nano_temp_dir + 'surfaceConfiguration.prm', 'w')
+    config_template_file = open(nanoshaper_dir+'config', 'r')
+    config_file = open(nanoshaper_temp_dir + 'surfaceConfiguration.prm', 'w')
     for line in config_template_file:
         if 'XYZR_FileName' in line:
-            line = 'XYZR_FileName = ' + mesh_dir + output_name + '.xyzr \n'
+            path = os.path.join(mesh_dir, output_name+'.xyzr')
+            line = 'XYZR_FileName = ' + path + ' \n'
         elif 'Grid_scale' in line:
             line = 'Grid_scale = {:04.1f} \n'.format(density)
         elif 'Probe_Radius' in line:
@@ -62,15 +64,12 @@ def generate_nanoshaper_mesh(mesh_xyzr_path, output_dir, output_name, density, p
     config_file.close()
     config_template_file.close()
 
-    os.chdir(nano_temp_dir)
-    os.system(nano_dir+"NanoShaper")
-    
-    #os.rename("triangulatedSurf.vert", output_name+".vert")
-    #os.rename("triangulatedSurf.face", output_name+".face")
+    os.chdir(nanoshaper_temp_dir)
+    os.system(nanoshaper_dir+"NanoShaper")
     
     os.chdir('..')
-    os.system('mv ' + nano_temp_dir + '*.vert ' + output_name + '.vert')
-    os.system('mv ' + nano_temp_dir + '*.face ' + output_name + '.face')
+    os.system('mv ' + nanoshaper_temp_dir + '*.vert ' + output_name + '.vert')
+    os.system('mv ' + nanoshaper_temp_dir + '*.face ' + output_name + '.face')
     
     vert_file = open( output_name + '.vert', 'r' )
     vert = vert_file.readlines()
@@ -89,7 +88,8 @@ def generate_nanoshaper_mesh(mesh_xyzr_path, output_dir, output_name, density, p
     face_file.write( ''.join( face[3:] ) )
     face_file.close()
     
-    #os.system('rm -r ' + mesh_dir)
+    os.system('rm -r ' + nanoshaper_temp_dir)
+    
     os.chdir('..')
     
     

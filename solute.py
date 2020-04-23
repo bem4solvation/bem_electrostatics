@@ -17,7 +17,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 2, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
+    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -26,7 +26,7 @@ class solute():
         self.force_field = force_field
 
         self.save_mesh_build_files = save_mesh_build_files
-        self.mesh_build_files_dir = mesh_build_files_dir
+        self.mesh_build_files_dir = os.path.abspath(mesh_build_files_dir)
         self.mesh_density = mesh_density
         self.mesh_probe_radius = mesh_probe_radius
         self.mesh_generator = mesh_generator
@@ -62,8 +62,8 @@ class solute():
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
         
-        bempp.api.set_default_device(0,0)
-        print(bempp.api.default_device())
+        #bempp.api.set_default_device(0,0)
+        #print(bempp.api.default_device())
                 
 
 
@@ -86,14 +86,14 @@ class solute():
         
         
         print("pass to strong form")
-        #A_strong = A.strong_form()
-        A_strong = A.weak_form()
+        A_strong = A.strong_form()
+        #A_strong = A.weak_form()
         self.time_matrix_system = time.time()-matrix_start_time
         print("finished strong form")
         
         print("construct RHS")
-        #rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
-        rhs = projections_from_grid_functions_list([rhs_1, rhs_2], A.dual_to_range_spaces)
+        rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
+        #rhs = projections_from_grid_functions_list([rhs_1, rhs_2], A.dual_to_range_spaces)
         
         print("Start gmres")
         gmres_start_time = time.time()
@@ -156,8 +156,7 @@ class solute():
 
 
 def generate_msms_mesh_import_charges(solute):
-
-    mesh_dir = "mesh_temp/"
+    mesh_dir = os.path.abspath("mesh_temp/")
     if solute.save_mesh_build_files:
         mesh_dir = solute.mesh_build_files_dir
 
@@ -168,23 +167,23 @@ def generate_msms_mesh_import_charges(solute):
             print ("Creation of the directory %s failed" % mesh_dir)
 
     if solute.imported_file_type == "pdb":
-        mesh_pqr_path = mesh_dir+solute.solute_name+".pqr"
+        mesh_pqr_path = os.path.join(mesh_dir, solute.solute_name+".pqr")
         mesh_tools.convert_pdb2pqr(solute.pdb_path, mesh_pqr_path, solute.force_field)
     else:
         mesh_pqr_path = solute.pqr_path
 
-    mesh_xyzr_path = mesh_dir+solute.solute_name+".xyzr"
+    mesh_xyzr_path = os.path.join(mesh_dir, solute.solute_name+".xyzr")
     mesh_tools.convert_pqr2xyzr(mesh_pqr_path, mesh_xyzr_path)
 
-    mesh_face_path = mesh_dir+solute.solute_name+".face"
-    mesh_vert_path = mesh_dir+solute.solute_name+".vert"
+    mesh_face_path = os.path.join(mesh_dir, solute.solute_name+".face")
+    mesh_vert_path = os.path.join(mesh_dir, solute.solute_name+".vert")
     
     if solute.mesh_generator == "msms":
         mesh_tools.generate_msms_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius)
     elif solute.mesh_generator == "nanoshaper":
         mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius, solute.save_mesh_build_files)
         
-    mesh_off_path = mesh_dir+solute.solute_name+".off"
+    mesh_off_path = os.path.join(mesh_dir, solute.solute_name+".off")
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
 
     grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
