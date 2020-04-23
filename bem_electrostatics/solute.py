@@ -6,11 +6,6 @@ import time
 import bem_electrostatics.mesh_tools.mesh_tools as mesh_tools
 import bem_electrostatics.utils as utils
 import bem_electrostatics.pb_formulation as pb_formulation
-from bempp.api.assembly.blocked_operator import (
-        coefficients_from_grid_functions_list,
-        projections_from_grid_functions_list,
-        grid_function_list_from_coefficients,
-    )
 
 class solute():
     """The basic Solute object
@@ -59,6 +54,11 @@ class solute():
         self.pb_formulation_alpha = 1.0
         self.pb_formulation_beta = self.ep_ex/self.ep_in
         
+        self.pb_formulation_preconditioning = False
+        self.pb_formulation_preconditioning_type = "squared"
+        
+        self.discrete_form_type = "strong"
+        
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
         
@@ -67,65 +67,86 @@ class solute():
                 
 
 
-    def calculate_potential(self):        
+    def calculate_potential(self):
+        ## Start the overall timing for the whole process
         start_time = time.time()
+        
+        ## Setup Dirichlet and Neumann spaces to use, save these as object vars ##
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
         neumann_space = bempp.api.function_space(self.mesh, "P", 1)
-
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
         
-        matrix_start_time = time.time()
+        ## Construct matrices and rhs based on the desired formulation ##
+        setup_start_time = time.time() ## Start the timing for the matrix and rhs construction##
         if self.pb_formulation == "juffer":
             A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "direct":
             A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs_1, rhs_2 = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)   
+            A, rhs_1, rhs_2, A_in, A_ex = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+        self.time_matrix_and_rhs_construction = time.time()-setup_start_time
+        
+        ## Pass matrix A to discrete form (either strong or weak) ##
+        matrix_discrete_start_time = time.time()
+        A_discrete = matrix_to_discrete_form(A, self.discrete_form_type)
+        self.time_matrix_to_discrete = time.time()-matrix_discrete_start_time
+        
+        ## Check to see if preconditioning is to be applied ##
+        preconditioning_start_time = time.time()
+        if self.pb_formulation_preconditioning and self.pb_formulation == "alpha_beta":
+            if self.pb_formulation_preconditioning_type == "interior":
+                A_conditioner_discrete = matrix_to_discrete_form(A_in, self.discrete_form_type)
+            elif self.pb_formulation_preconditioning_type == "exterior":
+                A_conditioner_discrete = matrix_to_discrete_form(A_ex, self.discrete_form_type)
+            elif self.pb_formulation_preconditioning_type == "squared":
+                A_conditioner_discrete = A_discrete
+
+            A_final = A_conditioner_discrete * A_discrete
+            rhs = A_conditioner_discrete * rhs_to_discrete_form([rhs_1, rhs_2], self.discrete_form_type, A)
+
+        ## Set variables for system of equations if no preconditioning is to applied ##
+        else:
+            A_final = A_discrete
+            rhs = rhs_to_discrete_form([rhs_1, rhs_2], self.discrete_form_type, A)
+        self.time_preconditioning = time.time()-preconditioning_start_time        
         
         
-        
-        print("pass to strong form")
-        A_strong = A.strong_form()
-        #A_strong = A.weak_form()
-        self.time_matrix_system = time.time()-matrix_start_time
-        print("finished strong form")
-        
-        print("construct RHS")
-        rhs = coefficients_from_grid_functions_list([rhs_1, rhs_2])
-        #rhs = projections_from_grid_functions_list([rhs_1, rhs_2], A.dual_to_range_spaces)
-        
-        print("Start gmres")
+        ## Use GMRES to solve the system of equations ##
         gmres_start_time = time.time()
-        x, info, it_count = utils.solver(A_strong, rhs, self.gmres_tolerance, self.gmres_max_iterations)
+        x, info, it_count = utils.solver(A_final, rhs, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
+        ## Split solution and generate corresponding grid functions
+        from bempp.api.assembly.blocked_operator import grid_function_list_from_coefficients
         (dirichlet_solution, neumann_solution) = grid_function_list_from_coefficients(x.ravel(), A.domain_spaces)
         
+        ## Save number of iterations taken and the solution of the system ##
         self.solver_iteration_count = it_count
         self.phi = dirichlet_solution
         self.d_phi = neumann_solution
         
+        ## Finished computing surface potential, register total time taken ##
         self.time_compue_potential = time.time()-start_time
         
+        ## Print times, if this is desiered ##
         if self.print_times:
-            print('It took ', self.time_matrix_system, ' seconds to compute the matrix system')
-            print('It took ', self.time_gmres, ' seconds to resolve the system')
-            print('It took ', self.time_compue_potential, ' seconds to compute the potential')
+            print('It took ', self.time_matrix_and_rhs_construction, ' seconds to construct the matrices and rhs vectores')
+            print('It took ', self.time_matrix_to_discrete, ' seconds to pass the main matrix to discrete form ('+self.discrete_form_type+')')
+            print('It took ', self.time_preconditioning, ' seconds to compute and apply the preconditioning ('+str(self.pb_formulation_preconditioning)+')('+self.pb_formulation_preconditioning_type+')')
+            print('It took ', self.time_gmres, ' seconds to resolve the system using GMRES')
+            print('It took ', self.time_compue_potential, ' seconds in total to compute the surface potential')
 
 
-
+            
     def calculate_solvation_energy(self):
         if not hasattr(self, 'phi'):
-            #call calulate potential here
+            ## If surface potential has not been calculated, calculate it now ##
             self.calculate_potential()
             
         start_time = time.time()
         dirichl_space = self.dirichl_space
         neumann_space = self.neumann_space
-
-        #solution_dirichl = bempp.api.GridFunction(dirichl_space, coefficients=self.phi)
-        #solution_neumann = bempp.api.GridFunction(neumann_space, coefficients=self.d_phi)
         
         solution_dirichl = self.phi
         solution_neumann = self.d_phi
@@ -144,16 +165,8 @@ class solute():
         self.time_calc_energy = time.time()-start_time
         if self.print_times:
             print('It took ', self.time_calc_energy, ' seconds to compute the solvatation energy')
-        
 
-
-    def mesh_info(self):
-        print("The grid has:")
-
-        number_of_elements = self.mesh.number_of_elements
-        print("{0} elements".format(number_of_elements))
-
-
+            
 
 def generate_msms_mesh_import_charges(solute):
     mesh_dir = os.path.abspath("mesh_temp/")
@@ -187,7 +200,6 @@ def generate_msms_mesh_import_charges(solute):
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
 
     grid = mesh_tools.import_msms_mesh(mesh_face_path, mesh_vert_path)
-    #grid = mesh_tools.import_off_mesh(mesh_off_path)
     q, x_q = utils.import_charges(mesh_pqr_path)
 
     if solute.save_mesh_build_files:
@@ -218,3 +230,23 @@ def get_name_from_pdb(pdb_path):
     pdb_file.close()
 
     return solute_name
+
+
+def matrix_to_discrete_form(matrix, discrete_form_type):
+    if discrete_form_type == "strong":
+        matrix_discrete = matrix.strong_form()
+    elif discrete_form_type == "weak":
+        matrix_discrete = matrix.weak_form()
+        
+    return matrix_discrete
+
+
+def rhs_to_discrete_form(rhs_list, discrete_form_type, A):
+    from bempp.api.assembly.blocked_operator import coefficients_from_grid_functions_list, projections_from_grid_functions_list
+    
+    if discrete_form_type == "strong":
+        rhs = coefficients_from_grid_functions_list(rhs_list)
+    elif discrete_form_type == "weak":
+        rhs = projections_from_grid_functions_list(rhs_list, A.dual_to_range_spaces)
+        
+    return rhs

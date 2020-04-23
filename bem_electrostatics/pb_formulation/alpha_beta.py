@@ -23,16 +23,15 @@ def modHelmMultitrace(dirichl_space, neumann_space, kappa):
 
     return A
 
-def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, alpha, beta):
-
+def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha, beta):
     from bempp.api.operators.boundary import sparse
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
 
-    ep = ep_out/ep_in
+    ep = ep_ex/ep_in
 
     A_in = laplaceMultitrace(dirichl_space, neumann_space)
-    A_out = modHelmMultitrace(dirichl_space, neumann_space, kappa)
+    A_ex = modHelmMultitrace(dirichl_space, neumann_space, kappa)
 
     D = bempp.api.BlockedOperator(2, 2)
     D[0, 0] = alpha*phi_id
@@ -58,9 +57,7 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, alpha
     Id[1, 0] = 0.0*phi_id
     Id[1, 1] = dph_id
 
-    A = ((0.5*Id)+A_in)+(D*((0.5*Id)-A_out)*E)-(Id+F)
-    #A = A.strong_form()
-    print("Got A")
+    A = ((0.5*Id)+A_in)+(D*((0.5*Id)-A_ex)*E)-(Id+F)
     
     @bempp.api.real_callable
     def d_green_func(x, n, domain_index, result):
@@ -75,11 +72,7 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, alpha
         
         result[:] = (-1.0)*np.sum(q/nrm)/(4.*np.pi*ep_in)
 
-    print("start RHS1")
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
-    print("start RHS2")
     rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
-    #rhs = np.concatenate([rhs_1.coefficients, rhs_2.coefficients])
-    print("RHS done")
 
-    return A, rhs_1, rhs_2
+    return A, rhs_1, rhs_2, A_in, A_ex
