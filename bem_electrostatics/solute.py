@@ -87,34 +87,38 @@ class solute():
             A, rhs_1, rhs_2, A_in, A_ex = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
-        ## Pass matrix A to discrete form (either strong or weak) ##
-        matrix_discrete_start_time = time.time()
-        A_discrete = matrix_to_discrete_form(A, self.discrete_form_type)
-        self.time_matrix_to_discrete = time.time()-matrix_discrete_start_time
         
         ## Check to see if preconditioning is to be applied ##
         preconditioning_start_time = time.time()
         if self.pb_formulation_preconditioning and self.pb_formulation == "alpha_beta":
             if self.pb_formulation_preconditioning_type == "interior":
-                A_conditioner_discrete = matrix_to_discrete_form(A_in, self.discrete_form_type)
+                A_conditioner = A_in
             elif self.pb_formulation_preconditioning_type == "exterior":
-                A_conditioner_discrete = matrix_to_discrete_form(A_ex, self.discrete_form_type)
+                A_conditioner = A_ex
             elif self.pb_formulation_preconditioning_type == "squared":
-                A_conditioner_discrete = A_discrete
+                A_conditioner = A
 
-            A_final = A_conditioner_discrete * A_discrete
-            rhs = A_conditioner_discrete * rhs_to_discrete_form([rhs_1, rhs_2], self.discrete_form_type, A)
+            A_final = A_conditioner * A
+            rhs = A_conditioner * [rhs_1, rhs_2]
 
         ## Set variables for system of equations if no preconditioning is to applied ##
         else:
-            A_final = A_discrete
-            rhs = rhs_to_discrete_form([rhs_1, rhs_2], self.discrete_form_type, A)
-        self.time_preconditioning = time.time()-preconditioning_start_time        
+            A_final = A
+            rhs = [rhs_1, rhs_2]
+        self.time_preconditioning = time.time()-preconditioning_start_time
+        
+        
+        ## Pass matrix A to discrete form (either strong or weak) ##
+        matrix_discrete_start_time = time.time()
+        A_discrete = matrix_to_discrete_form(A_final, self.discrete_form_type)
+        rhs_discrete = rhs_to_discrete_form(rhs, self.discrete_form_type, A)
+        self.time_matrix_to_discrete = time.time()-matrix_discrete_start_time
+        
         
         
         ## Use GMRES to solve the system of equations ##
         gmres_start_time = time.time()
-        x, info, it_count = utils.solver(A_final, rhs, self.gmres_tolerance, self.gmres_max_iterations)
+        x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
         ## Split solution and generate corresponding grid functions
