@@ -33,7 +33,8 @@ def convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path):
         data.write("3"+" "+str(face[0])+" "+str(face[1])+" "+str(face[2])+"\n")
     
 def generate_msms_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius):
-    command = "msms -if "+mesh_xyzr_path+" -of "+output_dir+output_name+" -p "+str(probe_radius)+" -d "+str(density)+" -no_header"
+    path = os.path.join(output_dir, output_name)
+    command = "msms -if "+mesh_xyzr_path+" -of "+path+" -p "+str(probe_radius)+" -d "+str(density)+" -no_header"
     os.system(command)
     
 def generate_nanoshaper_mesh(mesh_xyzr_path, output_dir, output_name, density, probe_radius, save_mesh_build_files):
