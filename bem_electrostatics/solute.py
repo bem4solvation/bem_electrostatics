@@ -12,7 +12,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
+    def __init__(self, solute_file_path, external_mesh_file = None, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -41,9 +41,24 @@ class solute():
 
         else:
             print("File is not pdb or pqr -> Cannot start")
+            
+        if external_mesh_file is not None:
+            filename, file_extension = os.path.splitext(external_mesh_file)
+            if file_extension == "":  ## Assume use of vert and face
+                self.external_mesh_face_path = external_mesh_file+".face"
+                self.external_mesh_vert_path = external_mesh_file+".vert"
+                self.mesh = mesh_tools.import_msms_mesh(self.external_mesh_face_path, self.external_mesh_vert_path)
+                
+            else:  ## Assume use of file that can be directly imported into bempp
+                self.external_mesh_file_path = external_mesh_file
+                self.mesh = bempp.api.import_grid(self.external_mesh_file_path)
+            
+            self.q, self.x_q = import_charges(self)  ## Import charges from given file
+            
+        else: ## Generate mesh from given pdb or pqr, and import charges at the same time
+            self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
 
 
-        self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
         self.mesh_elements = self.mesh.number_of_elements
         self.pb_formulation = "direct"
 
@@ -224,6 +239,27 @@ def generate_msms_mesh_import_charges(solute):
 
     return grid, q, x_q
 
+
+def import_charges(solute):
+    mesh_dir = os.path.abspath("mesh_temp/")
+    if solute.save_mesh_build_files:
+        mesh_dir = solute.mesh_build_files_dir
+
+    if not os.path.exists(mesh_dir):
+        try:
+            os.mkdir(mesh_dir)
+        except OSError:
+            print ("Creation of the directory %s failed" % mesh_dir)
+
+    if solute.imported_file_type == "pdb":
+        mesh_pqr_path = os.path.join(mesh_dir, solute.solute_name+".pqr")
+        mesh_tools.convert_pdb2pqr(solute.pdb_path, mesh_pqr_path, solute.force_field)
+    else:
+        mesh_pqr_path = solute.pqr_path
+
+    q, x_q = utils.import_charges(mesh_pqr_path)
+    
+    return q, x_q
 
 
 def get_name_from_pdb(pdb_path):
