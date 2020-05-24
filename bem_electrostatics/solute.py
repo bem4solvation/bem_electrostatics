@@ -12,7 +12,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, external_mesh_file = None, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
+    def __init__(self, solute_file_path, external_mesh_file = None, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, nanoshaper_grid_scale = None, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -22,7 +22,20 @@ class solute():
 
         self.save_mesh_build_files = save_mesh_build_files
         self.mesh_build_files_dir = os.path.abspath(mesh_build_files_dir)
-        self.mesh_density = mesh_density
+        
+        if nanoshaper_grid_scale is not None:
+            if mesh_generator is 'nanoshaper':
+                print('Using specified grid_scale.')
+                self.nanoshaper_grid_scale = nanoshaper_grid_scale
+            else:
+                print('Ignoring specified grid scale as mesh_generator is not specified as nanoshaper.')
+                self.mesh_density = mesh_density
+        else:
+            self.mesh_density = mesh_density
+            if mesh_generator is 'nanoshaper':
+                self.nanoshaper_grid_scale = mesh_tools.density_to_nanoshaper_grid_scale_conversion(self.mesh_density)
+            
+        
         self.mesh_probe_radius = mesh_probe_radius
         self.mesh_generator = mesh_generator
         
@@ -217,7 +230,7 @@ def generate_msms_mesh_import_charges(solute):
     if solute.mesh_generator == "msms":
         mesh_tools.generate_msms_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius)
     elif solute.mesh_generator == "nanoshaper":
-        mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius, solute.save_mesh_build_files)
+        mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.nanoshaper_grid_scale, solute.mesh_probe_radius, solute.save_mesh_build_files)
         
     mesh_off_path = os.path.join(mesh_dir, solute.solute_name+".off")
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
