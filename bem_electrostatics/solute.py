@@ -99,7 +99,7 @@ class solute():
         elif self.pb_formulation == "direct":
             A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs_1, rhs_2, A_in, A_ex, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
         
@@ -112,6 +112,8 @@ class solute():
                 A_conditioner = A_ex
             elif self.pb_formulation_preconditioning_type == "scaled_exterior_projector":
                 A_conditioner = scaled_exterior_projector
+            elif self.pb_formulation_preconditioning_type == "interior_projector":
+                A_conditioner = interior_projector
             elif self.pb_formulation_preconditioning_type == "squared":
                 A_conditioner = A
             else:
