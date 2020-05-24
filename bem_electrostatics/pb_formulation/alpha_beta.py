@@ -57,6 +57,7 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha,
     Id[1, 0] = 0.0*phi_id
     Id[1, 1] = dph_id
 
+    interior_projector = ((0.5*Id)+A_in)
     scaled_exterior_projector = (D*((0.5*Id)-A_ex)*E)
     A = ((0.5*Id)+A_in)+(D*((0.5*Id)-A_ex)*E)-(Id+F)
     
@@ -76,4 +77,4 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha,
     rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
     rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
 
-    return A, rhs_1, rhs_2, A_in, A_ex, scaled_exterior_projector
+    return A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector
