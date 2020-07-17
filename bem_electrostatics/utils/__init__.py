@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.sparse.linalg import gmres
 
 def import_charges(pqr_path):
     # Read charges and coordinates from the .pqr file
@@ -14,13 +13,15 @@ def import_charges(pqr_path):
 
     return q, x_q
 
-def solver(A, rhs, tolerance, max_iterations):
-    global it_count
-    it_count = 0
-    def iteration_counter(x):
-        global it_count
-        it_count += 1
+def solver(A, rhs, tolerance, max_iterations, precond=None):
+    from scipy.sparse.linalg import gmres
+    from bempp.api.linalg.iterative_solvers import IterationCounter
+    
+    callback = IterationCounter(True)
+    
+    if precond == None:
+        x, info = gmres(A, rhs, tol=tolerance, maxiter=max_iterations, callback=callback)
+    else:
+        x, info = gmres(A, rhs, M=precond, tol=tolerance, maxiter=max_iterations, callback=callback)
 
-    x, info = gmres(A, rhs, tol=tolerance, maxiter=max_iterations, callback=iteration_counter)
-
-    return x, info, it_count
+    return x, info, callback.count

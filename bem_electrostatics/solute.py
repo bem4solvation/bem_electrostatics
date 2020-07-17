@@ -90,6 +90,9 @@ class solute():
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
         
+        self.operator_assembler = 'default_nonlocal'
+        
+        
         #bempp.api.set_default_device(0,0)
         #print(bempp.api.default_device())
                 
@@ -101,39 +104,53 @@ class solute():
         
         ## Setup Dirichlet and Neumann spaces to use, save these as object vars ##
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
-        neumann_space = bempp.api.function_space(self.mesh, "P", 1)
+        #neumann_space = bempp.api.function_space(self.mesh, "P", 1)
+        neumann_space = dirichl_space
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
         
         ## Construct matrices and rhs based on the desired formulation ##
         setup_start_time = time.time() ## Start the timing for the matrix and rhs construction##
         if self.pb_formulation == "juffer":
-            A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
+            A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
         elif self.pb_formulation == "direct":
-            A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
+            A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
         
         ## Check to see if preconditioning is to be applied ##
         preconditioning_start_time = time.time()
-        if self.pb_formulation_preconditioning and self.pb_formulation == "alpha_beta":
-            if self.pb_formulation_preconditioning_type == "interior":
+        if self.pb_formulation_preconditioning:
+            if self.pb_formulation_preconditioning_type == "interior" and self.pb_formulation == "alpha_beta":
                 A_conditioner = A_in
-            elif self.pb_formulation_preconditioning_type == "exterior":
+            elif self.pb_formulation_preconditioning_type == "exterior" and self.pb_formulation == "alpha_beta":
                 A_conditioner = A_ex
-            elif self.pb_formulation_preconditioning_type == "scaled_exterior_projector":
+            elif self.pb_formulation_preconditioning_type == "scaled_exterior_projector" and self.pb_formulation == "alpha_beta":
                 A_conditioner = scaled_exterior_projector
-            elif self.pb_formulation_preconditioning_type == "interior_projector":
+            elif self.pb_formulation_preconditioning_type == "interior_projector" and self.pb_formulation == "alpha_beta":
                 A_conditioner = interior_projector
-            elif self.pb_formulation_preconditioning_type == "squared":
+            elif self.pb_formulation_preconditioning_type == "squared" and self.pb_formulation == "alpha_beta":
                 A_conditioner = A
+            elif self.pb_formulation_preconditioning_type == "block_diagonal":
+                if self.pb_formulation == "alpha_beta":
+                    preconditioner = pb_formulation.block_diagonal_preconditioner_alpha_beta(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+                elif self.pb_formulation == "juffer":
+                    preconditioner = pb_formulation.block_diagonal_preconditioner_juffer(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
+                else:
+                    preconditioner = pb_formulation.block_diagonal_preconditioner(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
             else:
                 raise ValueError('Unrecognised preconditioning type')
 
-            A_final = A_conditioner * A
-            rhs = A_conditioner * [rhs_1, rhs_2]
+            
+            if self.pb_formulation_preconditioning_type == "block_diagonal":
+                A_final = A
+                rhs = [rhs_1, rhs_2]
+            else:
+                rhs = A_conditioner * [rhs_1, rhs_2]
+                A_final = A_conditioner * A
+                
 
         ## Set variables for system of equations if no preconditioning is to applied ##
         else:
@@ -152,7 +169,10 @@ class solute():
         
         ## Use GMRES to solve the system of equations ##
         gmres_start_time = time.time()
-        x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations)
+        if self.pb_formulation_preconditioning and self.pb_formulation_preconditioning_type == "block_diagonal":
+            x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations, precond=preconditioner)
+        else:
+            x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
         ## Split solution and generate corresponding grid functions
