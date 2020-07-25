@@ -1,6 +1,87 @@
 import numpy as np
 import bempp.api
 
+def direct(dirichl_space, neumann_space, q, x_q, ep_in, ep_out, kappa, operator_assembler): 
+    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+    
+    identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    slp_in   = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    dlp_in   = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_out  = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+    dlp_out  = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+
+    # Matrix Assembly
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = 0.5*identity + dlp_in
+    A[0, 1] = -slp_in
+    A[1, 0] = 0.5*identity - dlp_out
+    A[1, 1] = (ep_in/ep_out)*slp_out
+   
+    @bempp.api.real_callable
+    def charges_fun(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
+        aux = np.sum(q/nrm)
+        
+        result[0] = aux/(4*np.pi*ep_in)
+        
+    @bempp.api.real_callable
+    def zero(x, n, domain_index, result):
+        result[0] = 0
+
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=charges_fun)
+    rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+
+    return A, rhs_1, rhs_2
+
+
+def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, operator_assembler):
+    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+
+    phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
+    ep = ep_ex/ep_in
+
+    dF = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    dP = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+    L1 = (ep*dP) - dF
+
+    F = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    P = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+    L2 = F - P
+
+    ddF = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    ddP = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
+    L3 = ddP - ddF
+
+    dF0 = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+    dP0 = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
+    L4 = dF0 - ((1.0/ep)*dP0)
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = (0.5*(1.0 + ep)*phi_id) - L1
+    A[0, 1] = (-1.0)*L2
+    A[1, 0] = L3    # Cambio de signo por definicion de bempp
+    A[1, 1] = (0.5*(1.0 + (1.0/ep))*dph_id) - L4
+
+    @bempp.api.real_callable
+    def d_green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
+        
+        const = -1./(4.*np.pi*ep_in)
+        result[:] = const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
+
+    @bempp.api.real_callable
+    def green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:,0])**2 + (x[1]-x_q[:,1])**2 + (x[2]-x_q[:,2])**2)
+        
+        result[:] = np.sum(q/nrm)/(4.*np.pi*ep_in)
+      
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+
+    return A, rhs_1, rhs_2
+
+
 def laplaceMultitrace(dirichl_space, neumann_space, operator_assembler):
     from bempp.api.operators.boundary import laplace
 
@@ -79,40 +160,8 @@ def alpha_beta(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha,
 
     return A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector
 
-def block_diagonal_preconditioner_alpha_beta(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta):
-    from scipy.sparse import diags, bmat
-    from scipy.sparse.linalg import factorized, LinearOperator
-    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
 
-    slp_in_diag = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
-    dlp_in_diag = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
-    hlp_in_diag = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler="only_diagonal_part").weak_form().A
-    adlp_in_diag = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler="only_diagonal_part").weak_form().A
-    
-    slp_out_diag = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler="only_diagonal_part").weak_form().A
-    dlp_out_diag = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler="only_diagonal_part").weak_form().A
-    hlp_out_diag = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa, assembler="only_diagonal_part").weak_form().A
-    adlp_out_diag = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa, assembler="only_diagonal_part").weak_form().A
-    
-
-    phi_identity_diag = sparse.identity(dirichl_space, dirichl_space, dirichl_space).weak_form().A.diagonal()
-    dph_identity_diag = sparse.identity(neumann_space, neumann_space, neumann_space).weak_form().A.diagonal()
-
-    ep = ep_ex/ep_in
-    
-    diag11 = diags((-0.5*(1+alpha))*phi_identity_diag + (alpha*dlp_out_diag) - dlp_in_diag)
-    diag12 = diags(slp_in_diag - ((alpha/ep)*slp_out_diag))
-    diag21 = diags(hlp_in_diag - (beta*hlp_out_diag))
-    diag22 = diags((-0.5*(1+(beta/ep)))*dph_identity_diag + adlp_in_diag - ((beta/ep)*adlp_out_diag))
-    block_mat_precond = bmat([[diag11, diag12], [diag21, diag22]]).tocsr()  # csr_matrix
-
-    solve = factorized(block_mat_precond)  # a callable for solving a sparse linear system (treat it as an inverse)
-    precond = LinearOperator(matvec=solve, dtype='float64', shape=block_mat_precond.shape)
-    
-    return precond
-
-
-def alpha_beta_new(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha, beta, operator_assembler):
+def alpha_beta_single_blocked_operator(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, alpha, beta, operator_assembler):
     from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
     
     dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
@@ -131,7 +180,6 @@ def alpha_beta_new(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, al
     ep = ep_ex/ep_in
     
     A = bempp.api.BlockedOperator(2, 2)
-    
     A[0, 0] = (-0.5*(1+alpha))*phi_identity + (alpha*dlp_out) - dlp_in
     A[0, 1] = slp_in - ((alpha/ep)*slp_out)
     A[1, 0] = hlp_in - (beta*hlp_out)

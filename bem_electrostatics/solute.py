@@ -111,19 +111,26 @@ class solute():
         
         ## Construct matrices and rhs based on the desired formulation ##
         setup_start_time = time.time() ## Start the timing for the matrix and rhs construction##
-        if self.pb_formulation == "juffer":
-            A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
-        elif self.pb_formulation == "direct":
-            A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
+        if self.pb_formulation == "direct":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
+        elif self.pb_formulation == "juffer":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.formulations.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+            #A, rhs_1, rhs_2 = pb_formulation.formulations.alpha_beta_single_blocked_operator(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
         
         ## Check to see if preconditioning is to be applied ##
         preconditioning_start_time = time.time()
         if self.pb_formulation_preconditioning:
-            if self.pb_formulation_preconditioning_type == "interior" and self.pb_formulation == "alpha_beta":
+            if self.pb_formulation_preconditioning_type.startswith("calderon"):
+                A_conditioner = pb_formulation.preconditioning.calderon(A, A_in, A_ex, interior_projector, scaled_exterior_projector, self.pb_formulation, self.pb_formulation_preconditioning_type)
+                A_final = A_conditioner * A
+                rhs = A_conditioner * [rhs_1, rhs_2]
+                
+                    
+         """   if self.pb_formulation_preconditioning_type == "interior" and self.pb_formulation == "alpha_beta":
                 A_conditioner = A_in
             elif self.pb_formulation_preconditioning_type == "exterior" and self.pb_formulation == "alpha_beta":
                 A_conditioner = A_ex
@@ -132,24 +139,31 @@ class solute():
             elif self.pb_formulation_preconditioning_type == "interior_projector" and self.pb_formulation == "alpha_beta":
                 A_conditioner = interior_projector
             elif self.pb_formulation_preconditioning_type == "squared" and self.pb_formulation == "alpha_beta":
-                A_conditioner = A
+                A_conditioner = A"""
+
             elif self.pb_formulation_preconditioning_type == "block_diagonal":
-                if self.pb_formulation == "alpha_beta":
+                preconditioner = pb_formulation.preconditioning.block_diagonal(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation, self.pb_formulation_alpha, self.pb_formulation_beta)
+                A_final = A
+                rhs = [rhs_1, rhs_2]
+                
+                """if self.pb_formulation == "alpha_beta":
                     preconditioner = pb_formulation.block_diagonal_preconditioner_alpha_beta(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
                 elif self.pb_formulation == "juffer":
                     preconditioner = pb_formulation.block_diagonal_preconditioner_juffer(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
-                else:
+                elif self.pb_formulation == "direct":
                     preconditioner = pb_formulation.block_diagonal_preconditioner(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
+                else:
+                    raise ValueError('Unrecognised preconditioning type')    """   
             else:
-                raise ValueError('Unrecognised preconditioning type')
+                raise ValueError('Unrecognised preconditioning type.')
 
             
-            if self.pb_formulation_preconditioning_type == "block_diagonal":
+           """ if self.pb_formulation_preconditioning_type == "block_diagonal":
                 A_final = A
                 rhs = [rhs_1, rhs_2]
             else:
                 rhs = A_conditioner * [rhs_1, rhs_2]
-                A_final = A_conditioner * A
+                A_final = A_conditioner * A""""
                 
 
         ## Set variables for system of equations if no preconditioning is to applied ##
@@ -189,11 +203,7 @@ class solute():
         
         ## Print times, if this is desiered ##
         if self.print_times:
-            print('It took ', self.time_matrix_and_rhs_construction, ' seconds to construct the matrices and rhs vectores')
-            print('It took ', self.time_matrix_to_discrete, ' seconds to pass the main matrix to discrete form ('+self.discrete_form_type+')')
-            print('It took ', self.time_preconditioning, ' seconds to compute and apply the preconditioning ('+str(self.pb_formulation_preconditioning)+')('+self.pb_formulation_preconditioning_type+')')
-            print('It took ', self.time_gmres, ' seconds to resolve the system using GMRES')
-            print('It took ', self.time_compue_potential, ' seconds in total to compute the surface potential')
+            show_potential_calculation_times(self)
 
 
             
@@ -329,3 +339,13 @@ def rhs_to_discrete_form(rhs_list, discrete_form_type, A):
         rhs = projections_from_grid_functions_list(rhs_list, A.dual_to_range_spaces)
         
     return rhs
+
+def show_potential_calculation_times(self):
+    if hasattr(self, 'phi'):
+        print('It took ', self.time_matrix_and_rhs_construction, ' seconds to construct the matrices and rhs vectores')
+        print('It took ', self.time_matrix_to_discrete, ' seconds to pass the main matrix to discrete form ('+self.discrete_form_type+')')
+        print('It took ', self.time_preconditioning, ' seconds to compute and apply the preconditioning ('+str(self.pb_formulation_preconditioning)+')('+self.pb_formulation_preconditioning_type+')')
+        print('It took ', self.time_gmres, ' seconds to resolve the system using GMRES')
+        print('It took ', self.time_compue_potential, ' seconds in total to compute the surface potential')
+    else:
+        print('Potential must first be calculated to show times.')

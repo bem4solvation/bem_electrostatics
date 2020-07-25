@@ -1,3 +1,6 @@
 from bem_electrostatics.pb_formulation.juffer import juffer, block_diagonal_preconditioner_juffer
 from bem_electrostatics.pb_formulation.direct import direct, block_diagonal_preconditioner
-from bem_electrostatics.pb_formulation.alpha_beta import alpha_beta, block_diagonal_preconditioner_alpha_beta
+from bem_electrostatics.pb_formulation.alpha_beta import alpha_beta, block_diagonal_preconditioner_alpha_beta, alpha_beta_new
+
+#import bem_electrostatics.pb_formulation.formulations
+#import bem_electrostatics.pb_formulation.preconditioning
