@@ -18,11 +18,11 @@ def calderon(A, interior_op, exterior_op, interior_projector, scaled_exterior_pr
     return A_conditioner
 
 def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulation_type, alpha, beta):
-    if formulation_type = "direct":
+    if formulation_type == "direct":
         preconditioner = block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
-    elif formulation_type = "juffer":
+    elif formulation_type == "juffer":
         preconditioner = block_diagonal_precon_juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
-    elif formulation_type = "alpha_beta":
+    elif formulation_type == "alpha_beta":
         preconditioner = block_diagonal_precon_alpha_beta(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta)
     else:
         raise ValueError('Block-diagonal preconditioning not implemented for the given formulation type.')
@@ -89,6 +89,10 @@ def block_diagonal_precon_juffer(dirichl_space, neumann_space, ep_in, ep_ex, kap
     return precond
 
 def block_diagonal_precon_alpha_beta(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta):
+    from scipy.sparse import diags, bmat
+    from scipy.sparse.linalg import factorized, LinearOperator
+    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+    
     slp_in_diag = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
     dlp_in_diag = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
     hlp_in_diag = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler="only_diagonal_part").weak_form().A

@@ -83,7 +83,7 @@ class solute():
         self.pb_formulation_beta = self.ep_ex/self.ep_in
         
         self.pb_formulation_preconditioning = False
-        self.pb_formulation_preconditioning_type = "squared"
+        self.pb_formulation_preconditioning_type = "calderon_squared"
         
         self.discrete_form_type = "strong"
         
@@ -91,11 +91,7 @@ class solute():
         self.gmres_max_iterations = 1000
         
         self.operator_assembler = 'default_nonlocal'
-        
-        
-        #bempp.api.set_default_device(0,0)
-        #print(bempp.api.default_device())
-                
+               
 
 
     def calculate_potential(self):
@@ -118,6 +114,8 @@ class solute():
         elif self.pb_formulation == "alpha_beta":
             A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.formulations.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
             #A, rhs_1, rhs_2 = pb_formulation.formulations.alpha_beta_single_blocked_operator(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+        else:
+            raise ValueError('Unrecognised formulation type.')
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
         
@@ -128,42 +126,12 @@ class solute():
                 A_conditioner = pb_formulation.preconditioning.calderon(A, A_in, A_ex, interior_projector, scaled_exterior_projector, self.pb_formulation, self.pb_formulation_preconditioning_type)
                 A_final = A_conditioner * A
                 rhs = A_conditioner * [rhs_1, rhs_2]
-                
-                    
-         """   if self.pb_formulation_preconditioning_type == "interior" and self.pb_formulation == "alpha_beta":
-                A_conditioner = A_in
-            elif self.pb_formulation_preconditioning_type == "exterior" and self.pb_formulation == "alpha_beta":
-                A_conditioner = A_ex
-            elif self.pb_formulation_preconditioning_type == "scaled_exterior_projector" and self.pb_formulation == "alpha_beta":
-                A_conditioner = scaled_exterior_projector
-            elif self.pb_formulation_preconditioning_type == "interior_projector" and self.pb_formulation == "alpha_beta":
-                A_conditioner = interior_projector
-            elif self.pb_formulation_preconditioning_type == "squared" and self.pb_formulation == "alpha_beta":
-                A_conditioner = A"""
-
             elif self.pb_formulation_preconditioning_type == "block_diagonal":
                 preconditioner = pb_formulation.preconditioning.block_diagonal(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation, self.pb_formulation_alpha, self.pb_formulation_beta)
                 A_final = A
                 rhs = [rhs_1, rhs_2]
-                
-                """if self.pb_formulation == "alpha_beta":
-                    preconditioner = pb_formulation.block_diagonal_preconditioner_alpha_beta(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
-                elif self.pb_formulation == "juffer":
-                    preconditioner = pb_formulation.block_diagonal_preconditioner_juffer(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
-                elif self.pb_formulation == "direct":
-                    preconditioner = pb_formulation.block_diagonal_preconditioner(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa)
-                else:
-                    raise ValueError('Unrecognised preconditioning type')    """   
             else:
                 raise ValueError('Unrecognised preconditioning type.')
-
-            
-           """ if self.pb_formulation_preconditioning_type == "block_diagonal":
-                A_final = A
-                rhs = [rhs_1, rhs_2]
-            else:
-                rhs = A_conditioner * [rhs_1, rhs_2]
-                A_final = A_conditioner * A""""
                 
 
         ## Set variables for system of equations if no preconditioning is to applied ##
