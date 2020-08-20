@@ -24,7 +24,7 @@ class solute():
         self.mesh_build_files_dir = os.path.abspath(mesh_build_files_dir)
         
         if nanoshaper_grid_scale is not None:
-            if mesh_generator is 'nanoshaper':
+            if mesh_generator == 'nanoshaper':
                 print('Using specified grid_scale.')
                 self.nanoshaper_grid_scale = nanoshaper_grid_scale
             else:
@@ -32,7 +32,7 @@ class solute():
                 self.mesh_density = mesh_density
         else:
             self.mesh_density = mesh_density
-            if mesh_generator is 'nanoshaper':
+            if mesh_generator == 'nanoshaper':
                 self.nanoshaper_grid_scale = mesh_tools.density_to_nanoshaper_grid_scale_conversion(self.mesh_density)
             
         
@@ -72,7 +72,6 @@ class solute():
             self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
 
 
-        self.mesh_elements = self.mesh.number_of_elements
         self.pb_formulation = "direct"
 
         self.ep_in = 4.0
@@ -113,7 +112,8 @@ class solute():
             A, rhs_1, rhs_2 = pb_formulation.formulations.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
         elif self.pb_formulation == "alpha_beta":
             A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.formulations.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
-            #A, rhs_1, rhs_2 = pb_formulation.formulations.alpha_beta_single_blocked_operator(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+        elif self.pb_formulation == "alpha_beta_single_blocked":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.alpha_beta_single_blocked_operator(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
         else:
             raise ValueError('Unrecognised formulation type.')
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
