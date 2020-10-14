@@ -1,27 +1,27 @@
 import numpy as np
 import bempp.api
 
-def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa):
+def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa, operator_assembler):
     from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
 
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
     ep = ep_ex/ep_in
 
-    dF = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space)
-    dP = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa)
+    dF = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    dP = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
     L1 = (ep*dP) - dF
 
-    F = laplace.single_layer(neumann_space, dirichl_space, dirichl_space)
-    P = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa)
+    F = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    P = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
     L2 = F - P
 
-    ddF = laplace.hypersingular(dirichl_space, neumann_space, neumann_space)
-    ddP = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa)
+    ddF = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    ddP = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
     L3 = ddP - ddF
 
-    dF0 = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space)
-    dP0 = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa)
+    dF0 = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+    dP0 = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
     L4 = dF0 - ((1.0/ep)*dP0)
 
     A = bempp.api.BlockedOperator(2, 2)
@@ -48,3 +48,42 @@ def juffer(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, kappa):
     rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
 
     return A, rhs_1, rhs_2
+
+
+def block_diagonal_preconditioner_juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa):
+    from scipy.sparse import diags, bmat
+    from scipy.sparse.linalg import factorized, LinearOperator
+    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+
+    phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space).weak_form().A.diagonal()
+    dph_id = sparse.identity(neumann_space, neumann_space, neumann_space).weak_form().A.diagonal()
+    ep = ep_ex/ep_in
+
+    dF = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
+    dP = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler="only_diagonal_part").weak_form().A
+    L1 = (ep*dP) - dF
+
+    F = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler="only_diagonal_part").weak_form().A
+    P = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler="only_diagonal_part").weak_form().A
+    L2 = F - P
+
+    ddF = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler="only_diagonal_part").weak_form().A
+    ddP = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa, assembler="only_diagonal_part").weak_form().A
+    L3 = ddP - ddF
+
+    dF0 = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler="only_diagonal_part").weak_form().A
+    dP0 = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa, assembler="only_diagonal_part").weak_form().A
+    L4 = dF0 - ((1.0/ep)*dP0)
+
+
+
+    diag11 = diags((0.5*(1.0 + ep)*phi_id) - L1)
+    diag12 = diags((-1.0)*L2)
+    diag21 = diags(L3)
+    diag22 = diags(dF0 - ((1.0/ep)*dP0))
+    block_mat_precond = bmat([[diag11, diag12], [diag21, diag22]]).tocsr()  # csr_matrix
+
+    solve = factorized(block_mat_precond)  # a callable for solving a sparse linear system (treat it as an inverse)
+    precond = LinearOperator(matvec=solve, dtype='float64', shape=block_mat_precond.shape)
+    
+    return precond

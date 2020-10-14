@@ -1,3 +1,2 @@
-from bem_electrostatics.pb_formulation.juffer import juffer
-from bem_electrostatics.pb_formulation.direct import direct
-from bem_electrostatics.pb_formulation.alpha_beta import alpha_beta
+import bem_electrostatics.pb_formulation.formulations as formulations
+import bem_electrostatics.pb_formulation.preconditioning as preconditioning

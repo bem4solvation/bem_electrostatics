@@ -12,7 +12,7 @@ class solute():
 
     This object holds all the solute information and allows for a easy way to hold the data"""
 
-    def __init__(self, solute_file_path, external_mesh_file = None, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
+    def __init__(self, solute_file_path, external_mesh_file = None, save_mesh_build_files = False, mesh_build_files_dir = "mesh_files/", mesh_density = 1.0, nanoshaper_grid_scale = None, mesh_probe_radius = 1.4, mesh_generator = "nanoshaper", print_times = False, force_field = "amber"):
 
         if os.path.isfile(solute_file_path) == False:
             print("file does not exist -> Cannot start")
@@ -22,7 +22,20 @@ class solute():
 
         self.save_mesh_build_files = save_mesh_build_files
         self.mesh_build_files_dir = os.path.abspath(mesh_build_files_dir)
-        self.mesh_density = mesh_density
+        
+        if nanoshaper_grid_scale is not None:
+            if mesh_generator == 'nanoshaper':
+                print('Using specified grid_scale.')
+                self.nanoshaper_grid_scale = nanoshaper_grid_scale
+            else:
+                print('Ignoring specified grid scale as mesh_generator is not specified as nanoshaper.')
+                self.mesh_density = mesh_density
+        else:
+            self.mesh_density = mesh_density
+            if mesh_generator == 'nanoshaper':
+                self.nanoshaper_grid_scale = mesh_tools.density_to_nanoshaper_grid_scale_conversion(self.mesh_density)
+            
+        
         self.mesh_probe_radius = mesh_probe_radius
         self.mesh_generator = mesh_generator
         
@@ -59,7 +72,6 @@ class solute():
             self.mesh, self.q, self.x_q = generate_msms_mesh_import_charges(self)
 
 
-        self.mesh_elements = self.mesh.number_of_elements
         self.pb_formulation = "direct"
 
         self.ep_in = 4.0
@@ -70,16 +82,15 @@ class solute():
         self.pb_formulation_beta = self.ep_ex/self.ep_in
         
         self.pb_formulation_preconditioning = False
-        self.pb_formulation_preconditioning_type = "squared"
+        self.pb_formulation_preconditioning_type = "calderon_squared"
         
         self.discrete_form_type = "strong"
         
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
         
-        #bempp.api.set_default_device(0,0)
-        #print(bempp.api.default_device())
-                
+        self.operator_assembler = 'default_nonlocal'
+               
 
 
     def calculate_potential(self):
@@ -88,39 +99,40 @@ class solute():
         
         ## Setup Dirichlet and Neumann spaces to use, save these as object vars ##
         dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
-        neumann_space = bempp.api.function_space(self.mesh, "P", 1)
+        #neumann_space = bempp.api.function_space(self.mesh, "P", 1)
+        neumann_space = dirichl_space
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
         
         ## Construct matrices and rhs based on the desired formulation ##
         setup_start_time = time.time() ## Start the timing for the matrix and rhs construction##
-        if self.pb_formulation == "juffer":
-            A, rhs_1, rhs_2 = pb_formulation.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
-        elif self.pb_formulation == "direct":
-            A, rhs_1, rhs_2 = pb_formulation.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa)
+        if self.pb_formulation == "direct":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.direct(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
+        elif self.pb_formulation == "juffer":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.juffer(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.operator_assembler)
         elif self.pb_formulation == "alpha_beta":
-            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta)
+            A, rhs_1, rhs_2, A_in, A_ex, interior_projector, scaled_exterior_projector = pb_formulation.formulations.alpha_beta(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+        elif self.pb_formulation == "alpha_beta_single_blocked":
+            A, rhs_1, rhs_2 = pb_formulation.formulations.alpha_beta_single_blocked_operator(dirichl_space, neumann_space, self.q, self.x_q, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation_alpha, self.pb_formulation_beta, self.operator_assembler)
+        else:
+            raise ValueError('Unrecognised formulation type.')
         self.time_matrix_and_rhs_construction = time.time()-setup_start_time
         
         
         ## Check to see if preconditioning is to be applied ##
         preconditioning_start_time = time.time()
-        if self.pb_formulation_preconditioning and self.pb_formulation == "alpha_beta":
-            if self.pb_formulation_preconditioning_type == "interior":
-                A_conditioner = A_in
-            elif self.pb_formulation_preconditioning_type == "exterior":
-                A_conditioner = A_ex
-            elif self.pb_formulation_preconditioning_type == "scaled_exterior_projector":
-                A_conditioner = scaled_exterior_projector
-            elif self.pb_formulation_preconditioning_type == "interior_projector":
-                A_conditioner = interior_projector
-            elif self.pb_formulation_preconditioning_type == "squared":
-                A_conditioner = A
+        if self.pb_formulation_preconditioning:
+            if self.pb_formulation_preconditioning_type.startswith("calderon"):
+                A_conditioner = pb_formulation.preconditioning.calderon(A, A_in, A_ex, interior_projector, scaled_exterior_projector, self.pb_formulation, self.pb_formulation_preconditioning_type)
+                A_final = A_conditioner * A
+                rhs = A_conditioner * [rhs_1, rhs_2]
+            elif self.pb_formulation_preconditioning_type == "block_diagonal":
+                preconditioner = pb_formulation.preconditioning.block_diagonal(dirichl_space, neumann_space, self.ep_in, self.ep_ex, self.kappa, self.pb_formulation, self.pb_formulation_alpha, self.pb_formulation_beta)
+                A_final = A
+                rhs = [rhs_1, rhs_2]
             else:
-                raise ValueError('Unrecognised preconditioning type')
-
-            A_final = A_conditioner * A
-            rhs = A_conditioner * [rhs_1, rhs_2]
+                raise ValueError('Unrecognised preconditioning type.')
+                
 
         ## Set variables for system of equations if no preconditioning is to applied ##
         else:
@@ -139,7 +151,10 @@ class solute():
         
         ## Use GMRES to solve the system of equations ##
         gmres_start_time = time.time()
-        x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations)
+        if self.pb_formulation_preconditioning and self.pb_formulation_preconditioning_type == "block_diagonal":
+            x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations, precond=preconditioner)
+        else:
+            x, info, it_count = utils.solver(A_discrete, rhs_discrete, self.gmres_tolerance, self.gmres_max_iterations)
         self.time_gmres = time.time()-gmres_start_time
         
         ## Split solution and generate corresponding grid functions
@@ -156,11 +171,7 @@ class solute():
         
         ## Print times, if this is desiered ##
         if self.print_times:
-            print('It took ', self.time_matrix_and_rhs_construction, ' seconds to construct the matrices and rhs vectores')
-            print('It took ', self.time_matrix_to_discrete, ' seconds to pass the main matrix to discrete form ('+self.discrete_form_type+')')
-            print('It took ', self.time_preconditioning, ' seconds to compute and apply the preconditioning ('+str(self.pb_formulation_preconditioning)+')('+self.pb_formulation_preconditioning_type+')')
-            print('It took ', self.time_gmres, ' seconds to resolve the system using GMRES')
-            print('It took ', self.time_compue_potential, ' seconds in total to compute the surface potential')
+            show_potential_calculation_times(self)
 
 
             
@@ -219,7 +230,7 @@ def generate_msms_mesh_import_charges(solute):
     if solute.mesh_generator == "msms":
         mesh_tools.generate_msms_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius)
     elif solute.mesh_generator == "nanoshaper":
-        mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.mesh_density, solute.mesh_probe_radius, solute.save_mesh_build_files)
+        mesh_tools.generate_nanoshaper_mesh(mesh_xyzr_path, mesh_dir, solute.solute_name, solute.nanoshaper_grid_scale, solute.mesh_probe_radius, solute.save_mesh_build_files)
         
     mesh_off_path = os.path.join(mesh_dir, solute.solute_name+".off")
     mesh_tools.convert_msms2off(mesh_face_path, mesh_vert_path, mesh_off_path)
@@ -296,3 +307,13 @@ def rhs_to_discrete_form(rhs_list, discrete_form_type, A):
         rhs = projections_from_grid_functions_list(rhs_list, A.dual_to_range_spaces)
         
     return rhs
+
+def show_potential_calculation_times(self):
+    if hasattr(self, 'phi'):
+        print('It took ', self.time_matrix_and_rhs_construction, ' seconds to construct the matrices and rhs vectores')
+        print('It took ', self.time_matrix_to_discrete, ' seconds to pass the main matrix to discrete form ('+self.discrete_form_type+')')
+        print('It took ', self.time_preconditioning, ' seconds to compute and apply the preconditioning ('+str(self.pb_formulation_preconditioning)+')('+self.pb_formulation_preconditioning_type+')')
+        print('It took ', self.time_gmres, ' seconds to resolve the system using GMRES')
+        print('It took ', self.time_compue_potential, ' seconds in total to compute the surface potential')
+    else:
+        print('Potential must first be calculated to show times.')
