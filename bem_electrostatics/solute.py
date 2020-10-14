@@ -3,9 +3,9 @@ import bempp.api
 import os
 import numpy as np
 import time
-import bem_electrostatics.mesh_tools.mesh_tools as mesh_tools
-import bem_electrostatics.utils as utils
+import bem_electrostatics.mesh_tools as mesh_tools
 import bem_electrostatics.pb_formulation as pb_formulation
+import bem_electrostatics.utils as utils
 
 
 class Solute:
@@ -45,8 +45,8 @@ class Solute:
         else:
             self.mesh_density = mesh_density
             if mesh_generator == 'nanoshaper':
-                self.nanoshaper_grid_scale = mesh_tools.density_to_nanoshaper_grid_scale_conversion(self.mesh_density)
-
+                self.nanoshaper_grid_scale = mesh_tools.density_to_nanoshaper_grid_scale_conversion(
+                    self.mesh_density)
         self.mesh_probe_radius = mesh_probe_radius
         self.mesh_generator = mesh_generator
 
