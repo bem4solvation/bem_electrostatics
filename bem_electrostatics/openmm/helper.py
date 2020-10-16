@@ -55,3 +55,71 @@ def simulation_to_solute(simulation):
                                               )
 
     return solute_object
+
+
+def apply_forcefield_generate_pqr(pdb_file_path, pqr_file_path, forcefield_choice, remove_extras_from_pdb=True):
+
+    pdb = create_pdb_object(pdb_file_path)
+    forcefield = openmm.app.ForceField('amber14-all.xml')
+
+    pdb_H = openmm.app.modeller.Modeller(pdb.topology, pdb.positions)
+    pdb_H.addHydrogens(forcefield, pH=7.0)
+
+    system = forcefield.createSystem(pdb_H.topology)
+    force_parameters = system.getForces()[3]
+
+    positions = pdb_H.getPositions()
+    topology = pdb_H.getTopology()
+
+    positions_in_angstroms = positions.value_in_unit(unit.angstrom)
+    atoms = topology.atoms()
+
+    data = []
+    max_lengths = [0] * 10
+    for atom in atoms:
+        charge = force_parameters.getParticleParameters(atom.index)[0].value_in_unit(unit.elementary_charge)
+        radius = force_parameters.getParticleParameters(atom.index)[1].value_in_unit(unit.angstrom)
+
+        position = []
+        for i in range(3):
+            position.append(str(positions_in_angstroms[atom.index][i]))
+
+        data_ind = ['ATOM', str(atom.id), atom.name, atom.residue.name, str(atom.residue.id), str(position[0]),
+                    str(position[1]), str(position[2]), str(charge), str(radius)]
+        data.append(data_ind)
+
+        for i in range(len(data_ind)):
+            if len(data_ind[i]) > max_lengths[i]:
+                max_lengths[i] = len(data_ind[i])
+
+    pqr_lines = []
+    for data_ind in data:
+        string = ''
+        for i in range(len(data_ind)):
+            string = string + "{:>{width}}".format(data_ind[i], width=max_lengths[i] + 2)
+        pqr_lines.append(string)
+
+    write_file_with_lines(pqr_file_path, pqr_lines)
+
+
+def create_pdb_object(solute_file_path):
+    file_extension = solute_file_path.split(".")[-1]
+    if file_extension == "pdb":
+        pdb = PDBFile(solute_file_path)
+        return pdb
+    else:
+        raise ValueError('Unrecognised file extension: %s  -> A PDB must be given' % file_extension)
+
+
+def write_file_with_lines(file_path, lines):
+    file = open(file_path, 'w')
+    for line in lines:
+        file.write(line+"\n")
+    file.close()
+
+
+def remove_extra_atoms_from_pdb(pdb_file_path):
+    file = open(file_path, 'w')
+    for line in lines:
+        file.write(line + "\n")
+    file.close()
