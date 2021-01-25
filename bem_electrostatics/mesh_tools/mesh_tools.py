@@ -7,7 +7,7 @@ def convert_pdb2pqr(mesh_pdb_path, mesh_pqr_path, force_field):
     from subprocess import call
     try:
         call(["pdb2pqr30",
-              "--ff="+force_field.upper,
+              "--ff="+force_field.upper(),
               mesh_pdb_path,
               mesh_pqr_path
               ])

@@ -295,6 +295,7 @@ def generate_msms_mesh_import_charges(solute):
 
     if solute.imported_file_type == "pdb":
         mesh_pqr_path = os.path.join(mesh_dir, solute.solute_name + ".pqr")
+        mesh_pqr_log = os.path.join(mesh_dir, solute.solute_name + ".log")
         mesh_tools.convert_pdb2pqr(solute.pdb_path,
                                    mesh_pqr_path,
                                    solute.force_field
@@ -333,6 +334,7 @@ def generate_msms_mesh_import_charges(solute):
     if solute.save_mesh_build_files:
         if solute.imported_file_type == "pdb":
             solute.mesh_pqr_path = mesh_pqr_path
+            solute.mesh_pqr_log = mesh_pqr_log
         solute.mesh_xyzr_path = mesh_xyzr_path
         solute.mesh_face_path = mesh_face_path
         solute.mesh_vert_path = mesh_vert_path
@@ -340,6 +342,7 @@ def generate_msms_mesh_import_charges(solute):
     else:
         if solute.imported_file_type == "pdb":
             os.remove(mesh_pqr_path)
+            os.remove(mesh_pqr_log)
         os.remove(mesh_xyzr_path)
         os.remove(mesh_face_path)
         os.remove(mesh_vert_path)

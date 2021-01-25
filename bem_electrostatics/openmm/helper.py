@@ -11,7 +11,7 @@ def create_solute(solute_file_path, external_mesh_file=None, save_mesh_build_fil
     if file_extension != "pdb":
         raise ValueError('Unrecognised file extension: %s  -> A PDB must be given' % file_extension)
 
-    pqr_file_path = temp.pqr
+    pqr_file_path = 'temp.pqr'
     apply_forcefield_generate_pqr(solute_file_path, pqr_file_path, forcefield_choice='amber14-all.xml',
                                   remove_extras_from_pdb=True)
 
