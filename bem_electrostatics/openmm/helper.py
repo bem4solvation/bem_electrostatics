@@ -8,33 +8,14 @@ def create_solute(solute_file_path, external_mesh_file=None, save_mesh_build_fil
                   mesh_probe_radius=1.4, mesh_generator="nanoshaper", print_times=False, force_field="amber"):
 
     file_extension = solute_file_path.split(".")[-1]
-    if file_extension == "pdb":
-        pdb = PDBFile(solute_file_path)
-    else:
+    if file_extension != "pdb":
         raise ValueError('Unrecognised file extension: %s  -> A PDB must be given' % file_extension)
 
-    forcefield = openmm.app.ForceField('amber14-all.xml')
-    pdb_H = openmm.app.modeller.Modeller(pdb.topology, pdb.positions)
-    pdb_H.addHydrogens(forcefield, pH=7.0)
+    pqr_file_path = temp.pqr
+    apply_forcefield_generate_pqr(solute_file_path, pqr_file_path, forcefield_choice='amber14-all.xml',
+                                  remove_extras_from_pdb=True)
 
-    system = forcefield.createSystem(pdb_H.topology)
-
-    force_parameters = system.getForces()[3]
-    for i in range(system.getNumParticles()):
-        print(i)
-        print(force_parameters.getParticleParameters(i))
-
-    solute_object = bem_electrostatics.Solute(generated_pqr_file,
-                                              external_mesh_file,
-                                              save_mesh_build_files,
-                                              mesh_build_files_dir,
-                                              mesh_density,
-                                              nanoshaper_grid_scale,
-                                              mesh_probe_radius,
-                                              mesh_generator,
-                                              print_times,
-                                              force_field
-                                              )
+    solute_object = bem_electrostatics.Solute(pqr_file_path)
 
     return solute_object
 
@@ -57,10 +38,10 @@ def simulation_to_solute(simulation):
     return solute_object
 
 
-def apply_forcefield_generate_pqr(pdb_file_path, pqr_file_path, forcefield_choice, remove_extras_from_pdb=True):
+def apply_forcefield_generate_pqr(pdb_file_path, pqr_file_path, forcefield_choice='amber14-all.xml', remove_extras_from_pdb=True):
 
     pdb = create_pdb_object(pdb_file_path)
-    forcefield = openmm.app.ForceField('amber14-all.xml')
+    forcefield = openmm.app.ForceField(forcefield_choice)
 
     pdb_H = openmm.app.modeller.Modeller(pdb.topology, pdb.positions)
     pdb_H.addHydrogens(forcefield, pH=7.0)
