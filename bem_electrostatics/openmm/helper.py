@@ -1,6 +1,12 @@
-from simtk import openmm, unit
-from simtk.openmm.app import PDBFile
 import bem_electrostatics.solute
+
+try:
+    from simtk import openmm, unit
+    from simtk.openmm.app import PDBFile
+except ImportError:
+    _has_openmm = False
+else:
+    _has_openmm = True
 
 
 def create_solute(solute_file_path, external_mesh_file=None, save_mesh_build_files=False,
