@@ -99,7 +99,8 @@ class Solute:
         self.gmres_tolerance = 1e-5
         self.gmres_max_iterations = 1000
 
-        self.operator_assembler = 'default_nonlocal'
+        self.operator_assembler = 'dense'
+        self.rhs_constructor = 'numpy'
 
         self.results = dict()
         self.timings = dict()
@@ -122,14 +123,19 @@ class Solute:
         # Construct matrices and rhs based on the desired formulation ##
         setup_start_time = time.time()  # Start the timing for the matrix and rhs construction##
         if self.pb_formulation == "direct":
-            A, rhs_1, rhs_2 = pb_formulation.formulations.direct(dirichl_space,
+            A = pb_formulation.formulations.lhs.direct(dirichl_space,
+                                                   neumann_space,
+                                                   self.ep_in,
+                                                   self.ep_ex,
+                                                   self.kappa,
+                                                   self.operator_assembler
+                                                   )
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.direct(dirichl_space,
                                                                  neumann_space,
                                                                  self.q,
                                                                  self.x_q,
                                                                  self.ep_in,
-                                                                 self.ep_ex,
-                                                                 self.kappa,
-                                                                 self.operator_assembler
+                                                                 self.rhs_constructor
                                                                  )
         elif self.pb_formulation == "juffer":
             A, rhs_1, rhs_2 = pb_formulation.formulations.juffer(dirichl_space,
