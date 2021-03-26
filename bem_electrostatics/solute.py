@@ -266,7 +266,10 @@ class Solute:
         # Save number of iterations taken and the solution of the system
         self.results["solver_iteration_count"] = it_count
         self.results["phi"] = dirichlet_solution
-        self.results["d_phi"] = neumann_solution
+        if self.pb_formulation == "alpha_beta_external_potential":
+            self.results["d_phi"] = (self.ep_ex / self.ep_in) * neumann_solution
+        else:
+            self.results["d_phi"] = neumann_solution
         # self.solver_iteration_count = it_count
         # self.phi = dirichlet_solution
         # self.d_phi = neumann_solution
