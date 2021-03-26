@@ -178,7 +178,7 @@ class Solute:
         rhs_start_time = time.time()  # Start the timing for the matrix construction
         derivative_type_formulations = ["juffer", "alpha_beta", "alpha_beta_external_potential",
                                         "alpha_beta_single_blocked_operator"]
-        if pb_formulation == "direct":
+        if self.pb_formulation == "direct":
             rhs_1, rhs_2 = pb_formulation.formulations.rhs.direct(dirichl_space,
                                                                  neumann_space,
                                                                  self.q,
@@ -186,7 +186,7 @@ class Solute:
                                                                  self.ep_in,
                                                                  self.rhs_constructor
                                                                  )
-        elif pb_formulation in derivative_type_formulations:
+        elif self.pb_formulation in derivative_type_formulations:
             rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_type(dirichl_space,
                                                                            neumann_space,
                                                                            self.q,
