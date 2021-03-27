@@ -170,6 +170,14 @@ class Solute:
                                                                                    self.pb_formulation_beta,
                                                                                    self.operator_assembler
                                                                                    )
+        elif self.pb_formulation == "derivative_ex":
+            A = pb_formulation.formulations.lhs.derivative_ex(dirichl_space,
+                                                              neumann_space,
+                                                              self.ep_in,
+                                                              self.ep_ex,
+                                                              self.kappa,
+                                                              self.operator_assembler
+                                                              )
         else:
             raise ValueError('Unrecognised formulation type for matrix construction: %s' % self.pb_formulation)
         self.timings["time_matrix_construction"] = time.time() - setup_start_time
@@ -194,6 +202,14 @@ class Solute:
                                                                            self.ep_in,
                                                                            self.rhs_constructor
                                                                            )
+        elif self.pb_formulation == "derivative_ex":
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_typ_exterior(dirichl_space,
+                                                                                   neumann_space,
+                                                                                   self.q,
+                                                                                   self.x_q,
+                                                                                   self.ep_ex,
+                                                                                   self.rhs_constructor
+                                                                                   )
         else:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time

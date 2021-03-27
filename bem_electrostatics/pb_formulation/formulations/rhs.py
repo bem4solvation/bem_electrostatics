@@ -82,3 +82,29 @@ def derivative_type(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor
         rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
 
     return rhs_1, rhs_2
+
+def derivative_typ_exterior(dirichl_space, neumann_space, q, x_q, ep_ex, rhs_constructor):
+    @bempp.api.callable(vectorized=True)
+    def rhs1_fun(x, n, domain_index, result):
+        import exafmm.laplace as _laplace
+        sources = _laplace.init_sources(x_q, q)
+        targets = _laplace.init_targets(x.T)
+        fmm = _laplace.LaplaceFmm(p=10, ncrit=500, filename='.rhs.tmp')
+        tree = _laplace.setup(sources, targets, fmm)
+        values = _laplace.evaluate(tree, fmm)
+        os.remove('.rhs.tmp')
+        result[:] = values[:,0] / ep_ex
+
+    @bempp.api.callable(vectorized=True)
+    def rhs2_fun(x, n, domain_index, result):
+        import exafmm.laplace as _laplace
+        sources = _laplace.init_sources(x_q, q)
+        targets = _laplace.init_targets(x.T)
+        fmm = _laplace.LaplaceFmm(p=10, ncrit=500, filename='.rhs.tmp')
+        tree = _laplace.setup(sources, targets, fmm)
+        values = _laplace.evaluate(tree, fmm)
+        os.remove('.rhs.tmp')
+        result[:] = np.sum(values[:,1:] * n.T, axis=1) / ep_ex
+
+    rhs1 = bempp.api.GridFunction(dirichl_space, fun=rhs1_fun)
+    rhs2 = bempp.api.GridFunction(neumann_space, fun=rhs2_fun)

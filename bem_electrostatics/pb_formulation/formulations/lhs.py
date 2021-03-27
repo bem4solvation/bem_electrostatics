@@ -1,10 +1,10 @@
 import numpy as np
 import bempp.api
 
+from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+
 
 def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler):
-    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
-
     identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
     dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
@@ -23,8 +23,6 @@ def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assemble
 
 
 def juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
-    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
-
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
     ep = ep_ex / ep_in
@@ -59,8 +57,6 @@ def juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler
 
 
 def laplace_multitrace(dirichl_space, neumann_space, operator_assembler):
-    from bempp.api.operators.boundary import laplace
-
     A = bempp.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0) * laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
     A[0, 1] = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
@@ -71,8 +67,6 @@ def laplace_multitrace(dirichl_space, neumann_space, operator_assembler):
 
 
 def mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler):
-    from bempp.api.operators.boundary import modified_helmholtz
-
     A = bempp.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0) * modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
                                                        assembler=operator_assembler)
@@ -87,7 +81,6 @@ def mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
 
 
 def alpha_beta(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta, operator_assembler):
-    from bempp.api.operators.boundary import sparse
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
 
@@ -128,7 +121,6 @@ def alpha_beta(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta, o
 
 
 def alpha_beta_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta, operator_assembler):
-    from bempp.api.operators.boundary import sparse
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
 
@@ -170,16 +162,10 @@ def alpha_beta_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha
 
 def alpha_beta_single_blocked_operator(dirichl_space, neumann_space, ep_in, ep_ex, kappa, alpha, beta,
                                        operator_assembler):
-    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
-
-    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space,
-                                  assembler=operator_assembler)
-    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space,
-                                  assembler=operator_assembler)
-    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space,
-                                   assembler=operator_assembler)
-    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space,
-                                           assembler=operator_assembler)
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
 
     dlp_out = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
                                               assembler=operator_assembler)
@@ -202,3 +188,35 @@ def alpha_beta_single_blocked_operator(dirichl_space, neumann_space, ep_in, ep_e
     A[1, 1] = (-0.5 * (1 + (beta / ep))) * dph_identity + adlp_in - ((beta / ep) * adlp_out)
 
     return A
+
+def derivative_ex(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    """
+    Construct the system matrix and RHS grid functions using derivative formulation with interior values.
+    """
+    phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
+    ep = ep_ex/ep_in
+
+    dF = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    dP = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+    B = 1/ep * dF - dP
+
+    F = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    P = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler)
+    A = F - P
+
+    ddF = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    ddP = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
+    D = 1/ep * (ddP - ddF)
+
+    dF0 = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+    dP0 = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa, assembler=operator_assembler)
+    C = dF0 - 1.0/ep*dP0
+
+    A_sys = bempp.api.BlockedOperator(2, 2)
+    A_sys[0, 0] = (0.5*(1.0 + (1.0/ep))*phi_id) + B
+    A_sys[0, 1] = -A
+    A_sys[1, 0] = D
+    A_sys[1, 1] = (0.5*(1.0 + (1.0/ep))*dph_id) - C
+
+    return A_sys
