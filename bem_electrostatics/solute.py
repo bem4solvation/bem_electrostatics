@@ -203,7 +203,7 @@ class Solute:
                                                                            self.rhs_constructor
                                                                            )
         elif self.pb_formulation == "derivative_ex":
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_typ_exterior(dirichl_space,
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_type_exterior(dirichl_space,
                                                                                    neumann_space,
                                                                                    self.q,
                                                                                    self.x_q,
