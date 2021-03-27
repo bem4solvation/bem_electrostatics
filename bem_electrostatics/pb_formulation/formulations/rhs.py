@@ -106,7 +106,7 @@ def derivative_type_exterior(dirichl_space, neumann_space, q, x_q, ep_ex, rhs_co
         os.remove('.rhs.tmp')
         result[:] = np.sum(values[:,1:] * n.T, axis=1) / ep_ex
 
-    rhs1 = bempp.api.GridFunction(dirichl_space, fun=rhs1_fun)
-    rhs2 = bempp.api.GridFunction(neumann_space, fun=rhs2_fun)
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=rhs1_fun)
+    rhs_2 = bempp.api.GridFunction(neumann_space, fun=rhs2_fun)
 
     return rhs_1, rhs_2
