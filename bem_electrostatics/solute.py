@@ -184,7 +184,7 @@ class Solute:
 
         # Construct RHS based on the desired formulation
         rhs_start_time = time.time()  # Start the timing for the matrix construction
-        derivative_type_formulations = ["juffer", "alpha_beta", "alpha_beta_external_potential",
+        alpha_beta_type_formulations = ["alpha_beta", "alpha_beta_external_potential",
                                         "alpha_beta_single_blocked_operator"]
         if self.pb_formulation == "direct":
             rhs_1, rhs_2 = pb_formulation.formulations.rhs.direct(dirichl_space,
@@ -194,8 +194,8 @@ class Solute:
                                                                  self.ep_in,
                                                                  self.rhs_constructor
                                                                  )
-        elif self.pb_formulation in derivative_type_formulations:
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_type(dirichl_space,
+        elif self.pb_formulation in alpha_beta_type_formulations:
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.alpha_beta_type(dirichl_space,
                                                                            neumann_space,
                                                                            self.q,
                                                                            self.x_q,
@@ -203,13 +203,21 @@ class Solute:
                                                                            self.rhs_constructor
                                                                            )
         elif self.pb_formulation == "derivative_ex":
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.derivative_type_exterior(dirichl_space,
-                                                                                   neumann_space,
-                                                                                   self.q,
-                                                                                   self.x_q,
-                                                                                   self.ep_ex,
-                                                                                   self.rhs_constructor
-                                                                                   )
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.lu_type(dirichl_space,
+                                                                   neumann_space,
+                                                                   self.q,
+                                                                   self.x_q,
+                                                                   self.ep_ex,
+                                                                   self.rhs_constructor
+                                                                   )
+        elif self.pb_formulation == "juffer":
+            rhs_1, rhs_2 = pb_formulation.formulations.rhs.juffer(dirichl_space,
+                                                                  neumann_space,
+                                                                  self.q,
+                                                                  self.x_q,
+                                                                  self.ep_ex,
+                                                                  self.rhs_constructor
+                                                                  )
         else:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time
