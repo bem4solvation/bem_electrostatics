@@ -102,6 +102,8 @@ class Solute:
         self.operator_assembler = 'dense'
         self.rhs_constructor = 'numpy'
 
+        self.matrices = dict()
+        self.rhs = dict()
         self.results = dict()
         self.timings = dict()
 
@@ -112,35 +114,29 @@ class Solute:
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
 
-    def calculate_potential(self):
-        # Start the overall timing for the whole process
-        start_time = time.time()
-
-        # Setup Dirichlet and Neumann spaces to use, get these form object vars
-        dirichl_space = self.dirichl_space
-        neumann_space = self.neumann_space
+    def initialise_matrices(self):
+        start_time = time.time()  # Start the timing for the matrix construction
 
         # Construct matrices based on the desired formulation
-        setup_start_time = time.time()  # Start the timing for the matrix construction
         if self.pb_formulation == "direct":
-            A = pb_formulation.formulations.lhs.direct(dirichl_space,
-                                                   neumann_space,
-                                                   self.ep_in,
-                                                   self.ep_ex,
-                                                   self.kappa,
-                                                   self.operator_assembler
-                                                   )
+            self.matrices["A"] = pb_formulation.formulations.lhs.direct(self.dirichl_space,
+                                                                        self.neumann_space,
+                                                                        self.ep_in,
+                                                                        self.ep_ex,
+                                                                        self.kappa,
+                                                                        self.operator_assembler
+                                                                        )
         elif self.pb_formulation == "juffer":
-            A = pb_formulation.formulations.lhs.juffer(dirichl_space,
-                                                       neumann_space,
-                                                       self.ep_in,
-                                                       self.ep_ex,
-                                                       self.kappa,
-                                                       self.operator_assembler
-                                                       )
+            self.matrices["A"] = pb_formulation.formulations.lhs.juffer(self.dirichl_space,
+                                                                        self.neumann_space,
+                                                                        self.ep_in,
+                                                                        self.ep_ex,
+                                                                        self.kappa,
+                                                                        self.operator_assembler
+                                                                        )
         elif self.pb_formulation == "alpha_beta":
-            matrices = pb_formulation.formulations.lhs.alpha_beta(dirichl_space,
-                                                                  neumann_space,
+            matrices = pb_formulation.formulations.lhs.alpha_beta(self.dirichl_space,
+                                                                  self.neumann_space,
                                                                   self.ep_in,
                                                                   self.ep_ex,
                                                                   self.kappa,
@@ -148,10 +144,11 @@ class Solute:
                                                                   self.pb_formulation_beta,
                                                                   self.operator_assembler
                                                                   )
-            A, A_in, A_ex, interior_projector, scaled_exterior_projector = matrices
+            self.matrices["A"], self.matrices["A_in"], self.matrices["A_ex"], self.matrices["interior_projector"],\
+            self.matrices["scaled_exterior_projector"] = matrices
         elif self.pb_formulation == "alpha_beta_external_potential":
-            matrices = pb_formulation.formulations.lhs.alpha_beta_external(dirichl_space,
-                                                                           neumann_space,
+            matrices = pb_formulation.formulations.lhs.alpha_beta_external(self.dirichl_space,
+                                                                           self.neumann_space,
                                                                            self.ep_in,
                                                                            self.ep_ex,
                                                                            self.kappa,
@@ -159,111 +156,133 @@ class Solute:
                                                                            self.pb_formulation_beta,
                                                                            self.operator_assembler
                                                                            )
-            A, A_in, A_ex, interior_projector, scaled_exterior_projector = matrices
+            self.matrices["A"], self.matrices["A_in"], self.matrices["A_ex"], self.matrices["interior_projector"], \
+            self.matrices["scaled_exterior_projector"] = matrices
         elif self.pb_formulation == "alpha_beta_single_blocked":
-            A = pb_formulation.formulations.lhs.alpha_beta_single_blocked_operator(dirichl_space,
-                                                                                   neumann_space,
-                                                                                   self.ep_in,
-                                                                                   self.ep_ex,
-                                                                                   self.kappa,
-                                                                                   self.pb_formulation_alpha,
-                                                                                   self.pb_formulation_beta,
-                                                                                   self.operator_assembler
-                                                                                   )
+            self.matrices["A"] = pb_formulation.formulations.lhs.alpha_beta_single_blocked_operator(self.dirichl_space,
+                                                                                                    self.neumann_space,
+                                                                                                    self.ep_in,
+                                                                                                    self.ep_ex,
+                                                                                                    self.kappa,
+                                                                                                    self.pb_formulation_alpha,
+                                                                                                    self.pb_formulation_beta,
+                                                                                                    self.operator_assembler
+                                                                                                    )
         elif self.pb_formulation == "derivative_ex":
-            A = pb_formulation.formulations.lhs.derivative_ex(dirichl_space,
-                                                              neumann_space,
-                                                              self.ep_in,
-                                                              self.ep_ex,
-                                                              self.kappa,
-                                                              self.operator_assembler
-                                                              )
+            self.matrices["A"] = pb_formulation.formulations.lhs.derivative_ex(self.dirichl_space,
+                                                                               self.neumann_space,
+                                                                               self.ep_in,
+                                                                               self.ep_ex,
+                                                                               self.kappa,
+                                                                               self.operator_assembler
+                                                                               )
         else:
             raise ValueError('Unrecognised formulation type for matrix construction: %s' % self.pb_formulation)
-        self.timings["time_matrix_construction"] = time.time() - setup_start_time
+        self.timings["time_matrix_initialisation"] = time.time() - start_time
+
+    def initialise_rhs(self):
+        rhs_start_time = time.time()  # Start the timing for the rhs initialisation
 
         # Construct RHS based on the desired formulation
-        rhs_start_time = time.time()  # Start the timing for the matrix construction
         alpha_beta_type_formulations = ["alpha_beta", "alpha_beta_external_potential",
                                         "alpha_beta_single_blocked_operator"]
         if self.pb_formulation == "direct":
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.direct(dirichl_space,
-                                                                 neumann_space,
-                                                                 self.q,
-                                                                 self.x_q,
-                                                                 self.ep_in,
-                                                                 self.rhs_constructor
-                                                                 )
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.direct(self.dirichl_space,
+                                                                                          self.neumann_space,
+                                                                                          self.q,
+                                                                                          self.x_q,
+                                                                                          self.ep_in,
+                                                                                          self.rhs_constructor
+                                                                                          )
         elif self.pb_formulation in alpha_beta_type_formulations:
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.alpha_beta_type(dirichl_space,
-                                                                           neumann_space,
-                                                                           self.q,
-                                                                           self.x_q,
-                                                                           self.ep_in,
-                                                                           self.rhs_constructor
-                                                                           )
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.alpha_beta_type(self.dirichl_space,
+                                                                                                   self.neumann_space,
+                                                                                                   self.q,
+                                                                                                   self.x_q,
+                                                                                                   self.ep_in,
+                                                                                                   self.rhs_constructor
+                                                                                                   )
         elif self.pb_formulation == "derivative_ex":
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.lu_type(dirichl_space,
-                                                                   neumann_space,
-                                                                   self.q,
-                                                                   self.x_q,
-                                                                   self.ep_ex,
-                                                                   self.rhs_constructor
-                                                                   )
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.lu_type(self.dirichl_space,
+                                                                                           self.neumann_space,
+                                                                                           self.q,
+                                                                                           self.x_q,
+                                                                                           self.ep_ex,
+                                                                                           self.rhs_constructor
+                                                                                           )
         elif self.pb_formulation == "juffer":
-            rhs_1, rhs_2 = pb_formulation.formulations.rhs.juffer(dirichl_space,
-                                                                  neumann_space,
-                                                                  self.q,
-                                                                  self.x_q,
-                                                                  self.ep_ex,
-                                                                  self.rhs_constructor
-                                                                  )
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.juffer(self.dirichl_space,
+                                                                                          self.neumann_space,
+                                                                                          self.q,
+                                                                                          self.x_q,
+                                                                                          self.ep_ex,
+                                                                                          self.rhs_constructor
+                                                                                          )
         else:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time
 
-        # Check to see if preconditioning is to be applied
+    def apply_preconditioning(self):
         preconditioning_start_time = time.time()
+
+        # Check to see if preconditioning is to be applied
         if self.pb_formulation_preconditioning:
             if self.pb_formulation_preconditioning_type.startswith("calderon"):
-                A_conditioner = pb_formulation.preconditioning.calderon(A,
-                                                                        A_in,
-                                                                        A_ex,
-                                                                        interior_projector,
-                                                                        scaled_exterior_projector,
-                                                                        self.pb_formulation,
-                                                                        self.pb_formulation_preconditioning_type
-                                                                        )
-                A_final = A_conditioner * A
-                rhs = A_conditioner * [rhs_1, rhs_2]
+                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon(self.matrices["A"],
+                                                                                                  self.matrices["A_in"],
+                                                                                                  self.matrices["A_ex"],
+                                                                                                  self.matrices["interior_projector"],
+                                                                                                  self.matrices["scaled_exterior_projector"],
+                                                                                                  self.pb_formulation,
+                                                                                                  self.pb_formulation_preconditioning_type
+                                                                                                  )
+                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
+                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             elif self.pb_formulation_preconditioning_type == "block_diagonal":
-                preconditioner = pb_formulation.preconditioning.block_diagonal(dirichl_space,
-                                                                               neumann_space,
-                                                                               self.ep_in,
-                                                                               self.ep_ex,
-                                                                               self.kappa,
-                                                                               self.pb_formulation,
-                                                                               self.pb_formulation_alpha,
-                                                                               self.pb_formulation_beta
-                                                                               )
-                A_final = A
-                rhs = [rhs_1, rhs_2]
+                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.block_diagonal(self.dirichl_space,
+                                                                                                        self.neumann_space,
+                                                                                                        self.ep_in,
+                                                                                                        self.ep_ex,
+                                                                                                        self.kappa,
+                                                                                                        self.pb_formulation,
+                                                                                                        self.pb_formulation_alpha,
+                                                                                                        self.pb_formulation_beta
+                                                                                                        )
+                self.matrices["A_final"] = self.matrices["A"]
+                self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             else:
                 raise ValueError('Unrecognised preconditioning type.')
 
         # Set variables for system of equations if no preconditioning is to applied
         else:
-            A_final = A
-            rhs = [rhs_1, rhs_2]
+            self.matrices["A_final"] = self.matrices["A"]
+            self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
         self.timings["time_preconditioning"] = time.time() - preconditioning_start_time
-        # self.time_preconditioning = time.time()-preconditioning_start_time
+
+    def calculate_potential(self, rerun_all = False):
+        # Start the overall timing for the whole process
+        start_time = time.time()
+
+        if rerun_all:
+            self.initialise_matrices()
+            self.initialise_rhs()
+            self.apply_preconditioning()
+        else:
+            if "A" not in self.matrices:
+                # If matrix A doesn't exist, it must first be created
+                self.initialise_matrices()
+            if "rhs_1" not in self.matrices:
+                # If rhs_1 doesn't exist, it must first be created
+                self.initialise_rhs()
+            if "A_final" not in self.matrices and "rhs_final" not in self.rhs:
+                # See if preconditioning needs to be applied if this hasn't been done
+                self.apply_preconditioning()
 
         # Pass matrix A to discrete form (either strong or weak)
         matrix_discrete_start_time = time.time()
-        A_discrete = matrix_to_discrete_form(A_final, self.discrete_form_type)
-        rhs_discrete = rhs_to_discrete_form(rhs, self.discrete_form_type, A)
+        A_discrete = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
+        rhs_discrete = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
-        # self.time_matrix_to_discrete = time.time()-matrix_discrete_start_time
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
@@ -272,7 +291,7 @@ class Solute:
                                              rhs_discrete,
                                              self.gmres_tolerance,
                                              self.gmres_max_iterations,
-                                             precond=preconditioner
+                                             precond=self.matrices["preconditioning_matrix"]
                                              )
         else:
             x, info, it_count = utils.solver(A_discrete,
@@ -281,7 +300,6 @@ class Solute:
                                              self.gmres_max_iterations
                                              )
         self.timings["time_gmres"] = time.time() - gmres_start_time
-        # self.time_gmres = time.time()-gmres_start_time
 
         # Split solution and generate corresponding grid functions
         from bempp.api.assembly.blocked_operator import grid_function_list_from_coefficients
@@ -306,32 +324,28 @@ class Solute:
         if self.print_times:
             show_potential_calculation_times(self)
 
-    def calculate_solvation_energy(self):
+    def calculate_solvation_energy(self, rerun_all = False):
         if "phi" not in self.results:
             # If surface potential has not been calculated, calculate it now
-            self.calculate_potential()
+            self.calculate_potential(rerun_all)
 
         start_time = time.time()
-        dirichl_space = self.dirichl_space
-        neumann_space = self.neumann_space
 
         solution_dirichl = self.results["phi"]
         solution_neumann = self.results["d_phi"]
 
         from bempp.api.operators.potential.laplace import single_layer, double_layer
 
-        slp_q = single_layer(neumann_space, self.x_q.transpose())
-        dlp_q = double_layer(dirichl_space, self.x_q.transpose())
+        slp_q = single_layer(self.neumann_space, self.x_q.transpose())
+        dlp_q = double_layer(self.dirichl_space, self.x_q.transpose())
         phi_q = slp_q * solution_neumann - dlp_q * solution_dirichl
 
         # total solvation energy applying constant to get units [kcal/mol]
         total_energy = 2 * np.pi * 332.064 * np.sum(self.q * phi_q).real
-
         self.results["solvation_energy"] = total_energy
-        # self.solvation_energy = total_energy
 
         self.timings["time_calc_energy"] = time.time() - start_time
-        # self.time_calc_energy = time.time()-start_time
+
         if self.print_times:
             print('It took ', self.timings["time_calc_energy"], ' seconds to compute the solvation energy')
 
@@ -464,7 +478,7 @@ def rhs_to_discrete_form(rhs_list, discrete_form_type, A):
 
 
 def show_potential_calculation_times(self):
-    if hasattr(self, 'phi'):
+    if "phi" in self.results:
         print('It took ', self.timings["time_matrix_construction"],
               ' seconds to construct the matrices')
         print('It took ', self.timings["time_rhs_construction"],
