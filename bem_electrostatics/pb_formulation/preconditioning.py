@@ -42,13 +42,13 @@ def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kap
     identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     identity_diag = identity.weak_form().to_sparse().diagonal()
     slp_in_diag = laplace.single_layer(neumann_space, dirichl_space, dirichl_space,
-                                       assembler="only_diagonal_part").weak_form().to_sparse()
+                                       assembler="only_diagonal_part").weak_form().get_diagonal()
     dlp_in_diag = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space,
-                                       assembler="only_diagonal_part").weak_form().to_sparse()
+                                       assembler="only_diagonal_part").weak_form().get_diagonal()
     slp_out_diag = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
-                                                   assembler="only_diagonal_part").weak_form().to_sparse()
+                                                   assembler="only_diagonal_part").weak_form().get_diagonal()
     dlp_out_diag = modified_helmholtz.double_layer(neumann_space, dirichl_space, dirichl_space, kappa,
-                                                   assembler="only_diagonal_part").weak_form().to_sparse()
+                                                   assembler="only_diagonal_part").weak_form().get_diagonal()
 
     diag11 = .5 * identity_diag + dlp_in_diag
     diag12 = -slp_in_diag
