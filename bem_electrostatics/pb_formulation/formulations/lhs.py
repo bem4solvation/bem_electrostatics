@@ -22,6 +22,24 @@ def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assemble
     return A
 
 
+def direct_external(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler):
+    identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_out = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                              assembler=operator_assembler)
+    dlp_out = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                              assembler=operator_assembler)
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = 0.5 * identity - dlp_out
+    A[0, 1] = slp_out
+    A[1, 0] = 0.5 * identity + dlp_in
+    A[1, 1] = -(ep_in / ep_out) * slp_in
+
+    return A
+
+
 def juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
     phi_id = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     dph_id = sparse.identity(neumann_space, neumann_space, neumann_space)
@@ -220,3 +238,142 @@ def derivative_ex(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_as
     A_sys[1, 1] = (0.5*(1.0 + (1.0/ep))*dph_id) - C
 
     return A_sys
+
+
+def first_kind_internal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    dlp_ex = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                              assembler=operator_assembler)
+    slp_ex = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                              assembler=operator_assembler)
+    hlp_ex = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa,
+                                               assembler=operator_assembler)
+    adlp_ex = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
+                                                       assembler=operator_assembler)
+
+    ep = ep_ex / ep_in
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = (-1.0*dlp_in) - dlp_ex
+    A[0, 1] = slp_in + ((1.0/ep)*slp_ex)
+    A[1, 0] = hlp_in + (ep*hlp_ex)
+    A[1, 1] = adlp_in + adlp_ex
+
+    return A
+
+
+def first_kind_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    dlp_ex = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    slp_ex = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    hlp_ex = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa,
+                                              assembler=operator_assembler)
+    adlp_ex = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
+                                                      assembler=operator_assembler)
+
+    ep = ep_ex / ep_in
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = (-1.0 * dlp_ex) - dlp_in
+    A[0, 1] = slp_ex + (ep * slp_in)
+    A[1, 0] = hlp_ex + ((1.0/ep) * hlp_in)
+    A[1, 1] = adlp_ex + adlp_in
+
+    return A
+
+
+def muller_internal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    dlp_ex = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    slp_ex = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    hlp_ex = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa,
+                                              assembler=operator_assembler)
+    adlp_ex = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
+                                                      assembler=operator_assembler)
+
+    phi_identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    dph_identity = sparse.identity(neumann_space, neumann_space, neumann_space)
+
+    ep = ep_ex / ep_in
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = phi_identity + dlp_in - dlp_ex
+    A[0, 1] = -slp_in + ((1.0/ep) * slp_ex)
+    A[1, 0] = -hlp_in + (ep * hlp_ex)
+    A[1, 1] = dph_identity - adlp_in + adlp_ex
+
+    return A
+
+
+def muller_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    dlp_ex = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    slp_ex = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    hlp_ex = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa,
+                                              assembler=operator_assembler)
+    adlp_ex = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
+                                                      assembler=operator_assembler)
+
+    phi_identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    dph_identity = sparse.identity(neumann_space, neumann_space, neumann_space)
+
+    ep = ep_ex / ep_in
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = phi_identity - dlp_ex + dlp_in
+    A[0, 1] = slp_ex - (ep * slp_in)
+    A[1, 0] = hlp_ex + ((1.0/ep) * hlp_in)
+    A[1, 1] = dph_identity + adlp_ex - adlp_in
+
+    return A
+
+
+def lu(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    hlp_in = laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    adlp_in = laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    dlp_ex = modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    slp_ex = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                             assembler=operator_assembler)
+    hlp_ex = modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space, kappa,
+                                              assembler=operator_assembler)
+    adlp_ex = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
+                                                      assembler=operator_assembler)
+
+    phi_identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    dph_identity = sparse.identity(neumann_space, neumann_space, neumann_space)
+
+    ep = ep_ex / ep_in
+
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = (0.5*(1+(1.0/ep)))*phi_identity - dlp_ex + (1.0/ep)*dlp_in
+    A[0, 1] = slp_ex - slp_in
+    A[1, 0] = (1.0/ep)*hlp_ex - (1.0/ep)*hlp_in
+    A[1, 1] = (0.5*(1+(1.0/ep)))*dph_identity + (1.0/ep)*adlp_ex - adlp_in
+
+    return A

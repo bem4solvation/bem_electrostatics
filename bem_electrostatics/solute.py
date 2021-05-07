@@ -168,14 +168,46 @@ class Solute:
                                                                                                     self.pb_formulation_beta,
                                                                                                     self.operator_assembler
                                                                                                     )
-        elif self.pb_formulation == "derivative_ex":
-            self.matrices["A"] = pb_formulation.formulations.lhs.derivative_ex(self.dirichl_space,
-                                                                               self.neumann_space,
-                                                                               self.ep_in,
-                                                                               self.ep_ex,
-                                                                               self.kappa,
-                                                                               self.operator_assembler
-                                                                               )
+        elif self.pb_formulation == "lu":
+            self.matrices["A"] = pb_formulation.formulations.lhs.lu(self.dirichl_space,
+                                                                    self.neumann_space,
+                                                                    self.ep_in,
+                                                                    self.ep_ex,
+                                                                    self.kappa,
+                                                                    self.operator_assembler
+                                                                    )
+        elif self.pb_formulation == "first_kind_internal":
+            self.matrices["A"] = pb_formulation.formulations.lhs.first_kind_internal(self.dirichl_space,
+                                                                                     self.neumann_space,
+                                                                                     self.ep_in,
+                                                                                     self.ep_ex,
+                                                                                     self.kappa,
+                                                                                     self.operator_assembler
+                                                                                     )
+        elif self.pb_formulation == "first_kind_external":
+            self.matrices["A"] = pb_formulation.formulations.lhs.first_kind_external(self.dirichl_space,
+                                                                                     self.neumann_space,
+                                                                                     self.ep_in,
+                                                                                     self.ep_ex,
+                                                                                     self.kappa,
+                                                                                     self.operator_assembler
+                                                                                     )
+        elif self.pb_formulation == "muller_internal":
+            self.matrices["A"] = pb_formulation.formulations.lhs.muller_internal(self.dirichl_space,
+                                                                                 self.neumann_space,
+                                                                                 self.ep_in,
+                                                                                 self.ep_ex,
+                                                                                 self.kappa,
+                                                                                 self.operator_assembler
+                                                                                 )
+        elif self.pb_formulation == "muller_external":
+            self.matrices["A"] = pb_formulation.formulations.lhs.muller_external(self.dirichl_space,
+                                                                                 self.neumann_space,
+                                                                                 self.ep_in,
+                                                                                 self.ep_ex,
+                                                                                 self.kappa,
+                                                                                 self.operator_assembler
+                                                                                 )
         else:
             raise ValueError('Unrecognised formulation type for matrix construction: %s' % self.pb_formulation)
         self.timings["time_matrix_initialisation"] = time.time() - start_time
@@ -202,22 +234,55 @@ class Solute:
                                                                                                    self.ep_in,
                                                                                                    self.rhs_constructor
                                                                                                    )
-        elif self.pb_formulation == "derivative_ex":
-            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.lu_type(self.dirichl_space,
-                                                                                           self.neumann_space,
-                                                                                           self.q,
-                                                                                           self.x_q,
-                                                                                           self.ep_ex,
-                                                                                           self.rhs_constructor
-                                                                                           )
         elif self.pb_formulation == "juffer":
             self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.juffer(self.dirichl_space,
                                                                                           self.neumann_space,
                                                                                           self.q,
                                                                                           self.x_q,
-                                                                                          self.ep_ex,
+                                                                                          self.ep_in,
                                                                                           self.rhs_constructor
                                                                                           )
+        elif self.pb_formulation == "lu":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.lu(self.dirichl_space,
+                                                                                      self.neumann_space,
+                                                                                      self.q,
+                                                                                      self.x_q,
+                                                                                      self.ep_ex,
+                                                                                      self.rhs_constructor
+                                                                                      )
+        elif self.pb_formulation == "first_kind_internal":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.first_kind_internal(self.dirichl_space,
+                                                                                                       self.neumann_space,
+                                                                                                       self.q,
+                                                                                                       self.x_q,
+                                                                                                       self.ep_in,
+                                                                                                       self.rhs_constructor
+                                                                                                       )
+        elif self.pb_formulation == "first_kind_external":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.first_kind_external(self.dirichl_space,
+                                                                                                       self.neumann_space,
+                                                                                                       self.q,
+                                                                                                       self.x_q,
+                                                                                                       self.ep_in,
+                                                                                                       self.rhs_constructor
+                                                                                                       )
+        elif self.pb_formulation == "muller_internal":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.muller_internal(self.dirichl_space,
+                                                                                                   self.neumann_space,
+                                                                                                   self.q,
+                                                                                                   self.x_q,
+                                                                                                   self.ep_in,
+                                                                                                   self.rhs_constructor
+                                                                                                   )
+        elif self.pb_formulation == "muller_external":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.muller_external(self.dirichl_space,
+                                                                                                   self.neumann_space,
+                                                                                                   self.q,
+                                                                                                   self.x_q,
+                                                                                                   self.ep_in,
+                                                                                                   self.ep_ex,
+                                                                                                   self.rhs_constructor
+                                                                                                   )
         else:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time

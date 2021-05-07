@@ -39,6 +39,23 @@ def direct(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
     return rhs_1, rhs_2
 
 
+def direct_external(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
+    @bempp.api.real_callable
+    def charges_fun(x, n, domain_index, result):
+        nrm = np.sqrt((x[0] - x_q[:, 0]) ** 2 + (x[1] - x_q[:, 1]) ** 2 + (x[2] - x_q[:, 2]) ** 2)
+        aux = np.sum(q / nrm)
+        result[0] = aux / (4 * np.pi * ep_in)
+
+    @bempp.api.real_callable
+    def zero(x, n, domain_index, result):
+        result[0] = 0
+
+    rhs_1 = bempp.api.GridFunction(neumann_space, fun=zero)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=charges_fun)
+
+    return rhs_1, rhs_2
+
+
 def alpha_beta_type(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
     if rhs_constructor == "fmm":
         @bempp.api.callable(vectorized=True)
@@ -83,7 +100,7 @@ def alpha_beta_type(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor
 
     return rhs_1, rhs_2
 
-def lu_type(dirichl_space, neumann_space, q, x_q, ep_ex, rhs_constructor):
+def lu(dirichl_space, neumann_space, q, x_q, ep_ex, rhs_constructor):
     if rhs_constructor == "fmm":
         @bempp.api.callable(vectorized=True)
         def rhs1_fun(x, n, domain_index, result):
@@ -168,5 +185,77 @@ def juffer(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
 
         rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
         rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+
+    return rhs_1, rhs_2
+
+
+def first_kind_internal(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
+    @bempp.api.real_callable
+    def d_green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        const = -1./(4.*np.pi*ep_in)
+        result[:] = -1.0 * const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
+
+    @bempp.api.real_callable
+    def green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        result[:] = -1.0 * np.sum(q/nrm)/(4.*np.pi*ep_in)
+
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+
+    return rhs_1, rhs_2
+
+
+def first_kind_external(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, rhs_constructor):
+    @bempp.api.real_callable
+    def d_green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        const = -1./(4.*np.pi*ep_in)
+        result[:] = -1.0 * (ep_in/ep_ex) * const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
+
+    @bempp.api.real_callable
+    def green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        result[:] = -1.0 * np.sum(q/nrm)/(4.*np.pi*ep_in)
+
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+
+    return rhs_1, rhs_2
+
+
+def muller_internal(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
+    @bempp.api.real_callable
+    def d_green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        const = -1./(4.*np.pi*ep_in)
+        result[:] = const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
+
+    @bempp.api.real_callable
+    def green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        result[:] = np.sum(q/nrm)/(4.*np.pi*ep_in)
+
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+
+    return rhs_1, rhs_2
+
+
+def muller_external(dirichl_space, neumann_space, q, x_q, ep_in, ep_ex, rhs_constructor):
+    @bempp.api.real_callable
+    def d_green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        const = -1./(4.*np.pi*ep_in)
+        result[:] = (ep_in/ep_ex) * const*np.sum(q*np.dot(x-x_q, n)/(nrm**3))
+
+    @bempp.api.real_callable
+    def green_func(x, n, domain_index, result):
+        nrm = np.sqrt((x[0]-x_q[:, 0])**2 + (x[1]-x_q[:, 1])**2 + (x[2]-x_q[:, 2])**2)
+        result[:] = np.sum(q/nrm)/(4.*np.pi*ep_in)
+
+    rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
+    rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
 
     return rhs_1, rhs_2
