@@ -126,6 +126,15 @@ class Solute:
                                                                         self.kappa,
                                                                         self.operator_assembler
                                                                         )
+
+        elif self.pb_formulation == "direct_external":
+            self.matrices["A"] = pb_formulation.formulations.lhs.direct_external(self.dirichl_space,
+                                                                                 self.neumann_space,
+                                                                                 self.ep_in,
+                                                                                 self.ep_ex,
+                                                                                 self.kappa,
+                                                                                 self.operator_assembler
+                                                                                 )
         elif self.pb_formulation == "juffer":
             self.matrices["A"] = pb_formulation.formulations.lhs.juffer(self.dirichl_space,
                                                                         self.neumann_space,
@@ -226,6 +235,14 @@ class Solute:
                                                                                           self.ep_in,
                                                                                           self.rhs_constructor
                                                                                           )
+        elif self.pb_formulation == "direct_external":
+            self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.direct_external(self.dirichl_space,
+                                                                                                   self.neumann_space,
+                                                                                                   self.q,
+                                                                                                   self.x_q,
+                                                                                                   self.ep_in,
+                                                                                                   self.rhs_constructor
+                                                                                                   )
         elif self.pb_formulation in alpha_beta_type_formulations:
             self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.alpha_beta_type(self.dirichl_space,
                                                                                                    self.neumann_space,
