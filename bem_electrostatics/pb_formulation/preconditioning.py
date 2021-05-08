@@ -19,9 +19,33 @@ def calderon(A, interior_op, exterior_op, interior_projector, scaled_exterior_pr
     return A_conditioner
 
 
+def first_kind(A, preconditioning_type, dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    import bem_electrostatics.pb_formulation.formulations.lhs as lhs
+    if preconditioning_type == "calderon_squared":
+        A_conditioner = A
+    elif preconditioning_type == "calderon_interior_operator":
+        A_conditioner = lhs.laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
+    elif preconditioning_type == "calderon_exterior_operator":
+        A_conditioner = lhs.mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
+    elif preconditioning_type == "calderon_interior_operator_scaled":
+        scaling_factors = [[1.0, (ep_ex/ep_in)],
+                           [(ep_in/ep_ex), 1.0]]
+        A_conditioner = lhs.laplace_multitrace_scaled(dirichl_space, neumann_space, scaling_factors, operator_assembler)
+    elif preconditioning_type == "calderon_exterior_operator_scaled":
+        scaling_factors = [[1.0, (ep_in/ep_ex)],
+                           [(ep_ex/ep_in), 1.0]]
+        A_conditioner = lhs.mod_helm_multitrace_scaled(dirichl_space, neumann_space, kappa, scaling_factors, operator_assembler)
+    else:
+        raise ValueError('Calderon preconditioning type not recognised.')
+
+    return A_conditioner
+
+
 def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulation_type, alpha, beta):
     if formulation_type == "direct":
         preconditioner = block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
+    elif formulation_type == "direct_external":
+        preconditioner = block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
     elif formulation_type == "juffer":
         preconditioner = block_diagonal_precon_juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
     elif formulation_type == "alpha_beta":
@@ -54,6 +78,40 @@ def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kap
     diag12 = -slp_in_diag
     diag21 = .5 * identity_diag - dlp_out_diag
     diag22 = (ep_in / ep_ex) * slp_out_diag
+
+    d_aux = 1 / (diag22 - diag21 * diag12 / diag11)
+    diag11_inv = 1 / diag11 + 1 / diag11 * diag12 * d_aux * diag21 / diag11
+    diag12_inv = -1 / diag11 * diag12 * d_aux
+    diag21_inv = -d_aux * diag21 / diag11
+    diag22_inv = d_aux
+
+    block_mat_precond = bmat([[diags(diag11_inv), diags(diag12_inv)],
+                              [diags(diag21_inv), diags(diag22_inv)]]).tocsr()
+
+    return aslinearoperator(block_mat_precond)
+
+
+def block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa):
+    from scipy.sparse import diags, bmat
+    from scipy.sparse.linalg import aslinearoperator
+    from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+
+    # block-diagonal preconditioner
+    identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    identity_diag = identity.weak_form().to_sparse().diagonal()
+    slp_in_diag = laplace.single_layer(neumann_space, dirichl_space, dirichl_space,
+                                       assembler="only_diagonal_part").weak_form().get_diagonal()
+    dlp_in_diag = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space,
+                                       assembler="only_diagonal_part").weak_form().get_diagonal()
+    slp_out_diag = modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                                   assembler="only_diagonal_part").weak_form().get_diagonal()
+    dlp_out_diag = modified_helmholtz.double_layer(neumann_space, dirichl_space, dirichl_space, kappa,
+                                                   assembler="only_diagonal_part").weak_form().get_diagonal()
+
+    diag11 = 0.5 * identity_diag - dlp_out_diag
+    diag12 = slp_out_diag
+    diag21 = 0.5 * identity_diag + dlp_in_diag
+    diag22 = -(ep_ex / ep_in) * slp_in_diag
 
     d_aux = 1 / (diag22 - diag21 * diag12 / diag11)
     diag11_inv = 1 / diag11 + 1 / diag11 * diag12 * d_aux * diag21 / diag11

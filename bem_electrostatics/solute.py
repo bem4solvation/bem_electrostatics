@@ -322,6 +322,16 @@ class Solute:
                                                                                                   )
                 self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
                 self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+            elif self.pb_formulation_preconditioning_type.startswith("first_kind"):
+                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.first_kind(self.matrices["A"],
+                                                                                                    self.pb_formulation_preconditioning_type,
+                                                                                                    self.dirichl_space,
+                                                                                                    self.neumann_space,
+                                                                                                    self.kappa,
+                                                                                                    self.operator_assembler
+                                                                                                    )
+                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
+                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             elif self.pb_formulation_preconditioning_type == "block_diagonal":
                 self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.block_diagonal(self.dirichl_space,
                                                                                                         self.neumann_space,

@@ -84,6 +84,16 @@ def laplace_multitrace(dirichl_space, neumann_space, operator_assembler):
     return A
 
 
+def laplace_multitrace_scaled(dirichl_space, neumann_space, scaling_factors, operator_assembler):
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = scaling_factors[0][0] * (-1.0) * laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    A[0, 1] = scaling_factors[0][1] * laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
+    A[1, 0] = scaling_factors[1][0] * laplace.hypersingular(dirichl_space, neumann_space, neumann_space, assembler=operator_assembler)
+    A[1, 1] = scaling_factors[1][1] * laplace.adjoint_double_layer(neumann_space, neumann_space, neumann_space, assembler=operator_assembler)
+
+    return A
+
+
 def mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler):
     A = bempp.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0) * modified_helmholtz.double_layer(dirichl_space, dirichl_space, dirichl_space, kappa,
@@ -94,6 +104,22 @@ def mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
                                                assembler=operator_assembler)
     A[1, 1] = modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space, neumann_space, kappa,
                                                       assembler=operator_assembler)
+
+    return A
+
+
+def mod_helm_multitrace_scaled(dirichl_space, neumann_space, kappa, scaling_factors, operator_assembler):
+    A = bempp.api.BlockedOperator(2, 2)
+    A[0, 0] = scaling_factors[0][0] * (-1.0) * modified_helmholtz.double_layer(dirichl_space, dirichl_space,
+                                                                               dirichl_space, kappa,
+                                                                               assembler=operator_assembler)
+    A[0, 1] = scaling_factors[0][1] * modified_helmholtz.single_layer(neumann_space, dirichl_space, dirichl_space,
+                                                                      kappa, assembler=operator_assembler)
+    A[1, 0] = scaling_factors[1][0] * modified_helmholtz.hypersingular(dirichl_space, neumann_space, neumann_space,
+                                                                       kappa, assembler=operator_assembler)
+    A[1, 1] = scaling_factors[1][1] * modified_helmholtz.adjoint_double_layer(neumann_space, neumann_space,
+                                                                              neumann_space, kappa,
+                                                                              assembler=operator_assembler)
 
     return A
 
