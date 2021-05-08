@@ -368,7 +368,7 @@ class Solute:
 
         # Split solution and generate corresponding grid functions
         from bempp.api.assembly.blocked_operator import grid_function_list_from_coefficients
-        (dirichlet_solution, neumann_solution) = grid_function_list_from_coefficients(x.ravel(), A.domain_spaces)
+        (dirichlet_solution, neumann_solution) = grid_function_list_from_coefficients(x.ravel(), self.matrices["A"].domain_spaces)
 
         # Save number of iterations taken and the solution of the system
         self.results["solver_iteration_count"] = it_count
