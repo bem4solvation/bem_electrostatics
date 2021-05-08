@@ -282,6 +282,7 @@ class Solute:
                                                                                                        self.q,
                                                                                                        self.x_q,
                                                                                                        self.ep_in,
+                                                                                                       self.ep_ex,
                                                                                                        self.rhs_constructor
                                                                                                        )
         elif self.pb_formulation == "muller_internal":
