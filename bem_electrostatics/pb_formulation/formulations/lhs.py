@@ -35,7 +35,7 @@ def direct_external(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator
     A[0, 0] = 0.5 * identity - dlp_out
     A[0, 1] = slp_out
     A[1, 0] = 0.5 * identity + dlp_in
-    A[1, 1] = -(ep_in / ep_out) * slp_in
+    A[1, 1] = -(ep_out/ep_in) * slp_in
 
     return A
 
