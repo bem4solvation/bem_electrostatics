@@ -97,6 +97,7 @@ class Solute:
         self.discrete_form_type = "strong"
 
         self.gmres_tolerance = 1e-5
+        self.gmres_restart = 20
         self.gmres_max_iterations = 1000
 
         self.operator_assembler = 'dense'
@@ -372,6 +373,7 @@ class Solute:
             x, info, it_count = utils.solver(A_discrete,
                                              rhs_discrete,
                                              self.gmres_tolerance,
+                                             self.gmres_restart,
                                              self.gmres_max_iterations,
                                              precond=self.matrices["preconditioning_matrix"]
                                              )
@@ -379,6 +381,7 @@ class Solute:
             x, info, it_count = utils.solver(A_discrete,
                                              rhs_discrete,
                                              self.gmres_tolerance,
+                                             self.gmres_restart,
                                              self.gmres_max_iterations
                                              )
         self.timings["time_gmres"] = time.time() - gmres_start_time
