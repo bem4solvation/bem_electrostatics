@@ -312,26 +312,29 @@ class Solute:
         # Check to see if preconditioning is to be applied
         if self.pb_formulation_preconditioning:
             if self.pb_formulation_preconditioning_type.startswith("calderon"):
-                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon(self.matrices["A"],
-                                                                                                  self.matrices["A_in"],
-                                                                                                  self.matrices["A_ex"],
-                                                                                                  self.matrices["interior_projector"],
-                                                                                                  self.matrices["scaled_exterior_projector"],
-                                                                                                  self.pb_formulation,
-                                                                                                  self.pb_formulation_preconditioning_type
-                                                                                                  )
-                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
-                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
-            elif self.pb_formulation_preconditioning_type.startswith("first_kind"):
-                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.first_kind(self.matrices["A"],
-                                                                                                    self.pb_formulation_preconditioning_type,
-                                                                                                    self.dirichl_space,
-                                                                                                    self.neumann_space,
-                                                                                                    self.kappa,
-                                                                                                    self.operator_assembler
-                                                                                                    )
-                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
-                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+                if self.pb_formulation.startswith("first_kind"):
+                    self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.first_kind(self.matrices["A"],
+                                                                                                        self.pb_formulation_preconditioning_type,
+                                                                                                        self.dirichl_space,
+                                                                                                        self.neumann_space,
+                                                                                                        self.ep_in,
+                                                                                                        self.ep_ex,
+                                                                                                        self.kappa,
+                                                                                                        self.operator_assembler
+                                                                                                        )
+                    self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
+                    self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+                else:
+                    self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon(self.matrices["A"],
+                                                                                                      self.matrices["A_in"],
+                                                                                                      self.matrices["A_ex"],
+                                                                                                      self.matrices["interior_projector"],
+                                                                                                      self.matrices["scaled_exterior_projector"],
+                                                                                                      self.pb_formulation,
+                                                                                                      self.pb_formulation_preconditioning_type
+                                                                                                      )
+                    self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
+                    self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             elif self.pb_formulation_preconditioning_type == "block_diagonal":
                 self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.block_diagonal(self.dirichl_space,
                                                                                                         self.neumann_space,
