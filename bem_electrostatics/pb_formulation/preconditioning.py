@@ -57,6 +57,28 @@ def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulatio
     return preconditioner
 
 
+def juffer_scaled_mass(dirichl_space, ep_in, ep_ex):
+    from bempp.api.operators.boundary import sparse
+    from scipy.linalg import block_diag
+    from numpy import linalg as la
+
+    identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
+    identity_dense = identity.weak_form().A.todense()
+    a = block_diag(identity_dense, identity_dense)
+    a_inv = la.inv(a)
+
+    grif_dof = dirichl_space.grid_dof_count
+
+    preconditioner = a_inv.copy()
+    for i in range(grif_dof):
+        for j in range(grif_dof):
+            preconditioner[i, j] = a_inv[i, j] * (1.0 / (0.5 * (1.0 + (ep_ex/ep_in))))
+            preconditioner[grif_dof + i, grif_dof + j] = a_inv[grif_dof + i, grif_dof + j] * \
+                                                (1.0/(0.5*(1.0+(ep_in/ep_ex))))
+
+    return preconditioner
+
+
 def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa):
     from scipy.sparse import diags, bmat
     from scipy.sparse.linalg import aslinearoperator
