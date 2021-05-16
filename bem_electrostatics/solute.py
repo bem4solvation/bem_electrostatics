@@ -351,9 +351,10 @@ class Solute:
                 self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.juffer_scaled_mass(self.dirichl_space,
                                                                                                             self.ep_in,
                                                                                                             self.ep_ex,
+                                                                                                            self.matrices["A"]
                                                                                                             )
-                self.matrices["A_final"] = self.matrices["A"]
-                self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
+                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             else:
                 raise ValueError('Unrecognised preconditioning type.')
 
@@ -390,8 +391,7 @@ class Solute:
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
-        if self.pb_formulation_preconditioning and (self.pb_formulation_preconditioning_type == "block_diagonal" or
-                                                    self.pb_formulation_preconditioning_type == "juffer_scaled_mass"):
+        if self.pb_formulation_preconditioning and self.pb_formulation_preconditioning_type == "block_diagonal":
             x, info, it_count = utils.solver(A_discrete,
                                              rhs_discrete,
                                              self.gmres_tolerance,
