@@ -387,11 +387,11 @@ class Solute:
         matrix_discrete_start_time = time.time()
         A_discrete = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
         rhs_discrete = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
-        self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
         if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
             A_discrete = self.matrices["preconditioning_matrix"] * A_discrete
             rhs_discrete = self.matrices["preconditioning_matrix"] * rhs_discrete
+        self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
