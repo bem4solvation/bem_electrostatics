@@ -91,7 +91,7 @@ def juffer_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
     range_ops[0,0] = range_ops[0,0] * (1.0 / (0.5 * (1.0 + (ep_ex/ep_in))))
     range_ops[1,1] =range_ops[1,1] * (1.0/(0.5*(1.0+(ep_in/ep_ex))))
 
-    preconditioner = range_ops
+    preconditioner = BlockedDiscreteOperator(range_ops)
 
     return preconditioner
 
