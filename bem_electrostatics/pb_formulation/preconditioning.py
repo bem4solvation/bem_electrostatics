@@ -1,3 +1,5 @@
+import numpy as np
+
 def calderon(A, interior_op, exterior_op, interior_projector, scaled_exterior_projector, formulation,
              preconditioning_type):
     if formulation == "alpha_beta":
