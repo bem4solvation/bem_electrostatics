@@ -389,7 +389,7 @@ class Solute:
         rhs_discrete = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
-        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass":
+        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
             A_discrete = self.matrices["preconditioning_matrix"] * A_discrete
             rhs_discrete = self.matrices["preconditioning_matrix"] * rhs_discrete
 
@@ -438,9 +438,12 @@ class Solute:
             show_potential_calculation_times(self)
 
     def calculate_solvation_energy(self, rerun_all = False):
+        if rerun_all:
+            self.calculate_potential(rerun_all)
+
         if "phi" not in self.results:
             # If surface potential has not been calculated, calculate it now
-            self.calculate_potential(rerun_all)
+            self.calculate_potential()
 
         start_time = time.time()
 
