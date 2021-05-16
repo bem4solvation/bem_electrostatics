@@ -353,8 +353,8 @@ class Solute:
                                                                                                             self.ep_ex,
                                                                                                             self.matrices["A"]
                                                                                                             )
-                self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A"]
-                self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+                self.matrices["A_final"] = self.matrices["A"]
+                self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             else:
                 raise ValueError('Unrecognised preconditioning type.')
 
@@ -388,6 +388,10 @@ class Solute:
         A_discrete = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
         rhs_discrete = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
+
+        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass":
+            self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A_final"]
+            self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_final"]
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
