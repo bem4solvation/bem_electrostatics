@@ -390,8 +390,8 @@ class Solute:
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
         if self.pb_formulation_preconditioning_type == "juffer_scaled_mass":
-            self.matrices["A_final"] = self.matrices["preconditioning_matrix"] * self.matrices["A_final"]
-            self.rhs["rhs_final"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_final"]
+            A_discrete = self.matrices["preconditioning_matrix"] * A_discrete
+            rhs_discrete = self.matrices["preconditioning_matrix"] * rhs_discrete
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
