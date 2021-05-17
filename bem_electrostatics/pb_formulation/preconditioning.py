@@ -46,8 +46,12 @@ def first_kind(A, preconditioning_type, dirichl_space, neumann_space, ep_in, ep_
 def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulation_type, alpha, beta):
     if formulation_type == "direct":
         preconditioner = block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
+    elif formulation_type == "direct_permuted":
+        preconditioner = block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa, True)
     elif formulation_type == "direct_external":
         preconditioner = block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
+    elif formulation_type == "direct_external_permuted":
+        preconditioner = block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, True)
     elif formulation_type == "juffer":
         preconditioner = block_diagonal_precon_juffer(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
     elif formulation_type == "alpha_beta":
@@ -60,24 +64,6 @@ def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulatio
 
 
 def juffer_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
-    #from bempp.api.operators.boundary import sparse
-    #from scipy.linalg import block_diag
-    #from numpy import linalg as la
-
-    #identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
-    #identity_dense = identity.weak_form().A.todense()
-    #a = block_diag(identity_dense, identity_dense)
-    #a_inv = la.inv(a)
-
-    #grif_dof = dirichl_space.grid_dof_count
-
-    #preconditioner = a_inv.copy()
-    #for i in range(grif_dof):
-    #    for j in range(grif_dof):
-    #        preconditioner[i, j] = a_inv[i, j] * (1.0 / (0.5 * (1.0 + (ep_ex/ep_in))))
-    #        preconditioner[grif_dof + i, grif_dof + j] = a_inv[grif_dof + i, grif_dof + j] * \
-    #                                            (1.0/(0.5*(1.0+(ep_in/ep_ex))))
-
     from bempp.api.utils.helpers import get_inverse_mass_matrix
     from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
 
@@ -96,7 +82,7 @@ def juffer_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
     return preconditioner
 
 
-def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa):
+def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa, permuted_rows = False):
     from scipy.sparse import diags, bmat
     from scipy.sparse.linalg import aslinearoperator
     from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
@@ -113,10 +99,16 @@ def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kap
     dlp_out_diag = modified_helmholtz.double_layer(neumann_space, dirichl_space, dirichl_space, kappa,
                                                    assembler="only_diagonal_part").weak_form().get_diagonal()
 
-    diag11 = .5 * identity_diag + dlp_in_diag
-    diag12 = -slp_in_diag
-    diag21 = .5 * identity_diag - dlp_out_diag
-    diag22 = (ep_in / ep_ex) * slp_out_diag
+    if permuted_rows:
+        diag11 = .5 * identity_diag - dlp_out_diag
+        diag12 = (ep_in / ep_ex) * slp_out_diag
+        diag21 = .5 * identity_diag + dlp_in_diagg
+        diag22 = -slp_in_diag
+    else:
+        diag11 = .5 * identity_diag + dlp_in_diag
+        diag12 = -slp_in_diag
+        diag21 = .5 * identity_diag - dlp_out_diag
+        diag22 = (ep_in / ep_ex) * slp_out_diag
 
     d_aux = 1 / (diag22 - diag21 * diag12 / diag11)
     diag11_inv = 1 / diag11 + 1 / diag11 * diag12 * d_aux * diag21 / diag11
@@ -130,7 +122,7 @@ def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kap
     return aslinearoperator(block_mat_precond)
 
 
-def block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa):
+def block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, permuted_rows = False):
     from scipy.sparse import diags, bmat
     from scipy.sparse.linalg import aslinearoperator
     from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
@@ -147,10 +139,16 @@ def block_diagonal_precon_direct_external(dirichl_space, neumann_space, ep_in, e
     dlp_out_diag = modified_helmholtz.double_layer(neumann_space, dirichl_space, dirichl_space, kappa,
                                                    assembler="only_diagonal_part").weak_form().get_diagonal()
 
-    diag11 = 0.5 * identity_diag - dlp_out_diag
-    diag12 = slp_out_diag
-    diag21 = 0.5 * identity_diag + dlp_in_diag
-    diag22 = -(ep_ex / ep_in) * slp_in_diag
+    if permuted_rows:
+        diag11 = 0.5 * identity_diag + dlp_in_diag
+        diag12 = -(ep_ex / ep_in) * slp_in_diag
+        diag21 = 0.5 * identity_diag - dlp_out_diag
+        diag22 = slp_out_diag
+    else:
+        diag11 = 0.5 * identity_diag - dlp_out_diag
+        diag12 = slp_out_diag
+        diag21 = 0.5 * identity_diag + dlp_in_diag
+        diag22 = -(ep_ex / ep_in) * slp_in_diag
 
     d_aux = 1 / (diag22 - diag21 * diag12 / diag11)
     diag11_inv = 1 / diag11 + 1 / diag11 * diag12 * d_aux * diag21 / diag11

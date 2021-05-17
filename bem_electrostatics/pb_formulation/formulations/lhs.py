@@ -4,7 +4,7 @@ import bempp.api
 from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
 
 
-def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler):
+def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler, permute_rows = False):
     identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
     dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
@@ -14,15 +14,21 @@ def direct(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assemble
                                               assembler=operator_assembler)
 
     A = bempp.api.BlockedOperator(2, 2)
-    A[0, 0] = 0.5 * identity + dlp_in
-    A[0, 1] = -slp_in
-    A[1, 0] = 0.5 * identity - dlp_out
-    A[1, 1] = (ep_in / ep_out) * slp_out
+    if permute_rows:    #Use permuted rows formulation
+        A[0, 0] = 0.5 * identity - dlp_out
+        A[0, 1] = (ep_in / ep_out) * slp_out
+        A[1, 0] = 0.5 * identity + dlp_in
+        A[1, 1] = -slp_in
+    else:   #Normal direct formulation
+        A[0, 0] = 0.5 * identity + dlp_in
+        A[0, 1] = -slp_in
+        A[1, 0] = 0.5 * identity - dlp_out
+        A[1, 1] = (ep_in / ep_out) * slp_out
 
     return A
 
 
-def direct_external(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler):
+def direct_external(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator_assembler, permute_rows = False):
     identity = sparse.identity(dirichl_space, dirichl_space, dirichl_space)
     slp_in = laplace.single_layer(neumann_space, dirichl_space, dirichl_space, assembler=operator_assembler)
     dlp_in = laplace.double_layer(dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler)
@@ -32,10 +38,16 @@ def direct_external(dirichl_space, neumann_space, ep_in, ep_out, kappa, operator
                                               assembler=operator_assembler)
 
     A = bempp.api.BlockedOperator(2, 2)
-    A[0, 0] = 0.5 * identity - dlp_out
-    A[0, 1] = slp_out
-    A[1, 0] = 0.5 * identity + dlp_in
-    A[1, 1] = -(ep_out/ep_in) * slp_in
+    if permute_rows:    #Use permuted rows formulation
+        A[0, 0] = 0.5 * identity + dlp_in
+        A[0, 1] = -(ep_out / ep_in) * slp_in
+        A[1, 0] = 0.5 * identity - dlp_out
+        A[1, 1] = slp_out
+    else:   #Normal direct formulation
+        A[0, 0] = 0.5 * identity - dlp_out
+        A[0, 1] = slp_out
+        A[1, 0] = 0.5 * identity + dlp_in
+        A[1, 1] = -(ep_out/ep_in) * slp_in
 
     return A
 

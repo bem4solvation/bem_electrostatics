@@ -127,7 +127,15 @@ class Solute:
                                                                         self.kappa,
                                                                         self.operator_assembler
                                                                         )
-
+        elif self.pb_formulation == "direct_permuted":
+            self.matrices["A"] = pb_formulation.formulations.lhs.direct(self.dirichl_space,
+                                                                        self.neumann_space,
+                                                                        self.ep_in,
+                                                                        self.ep_ex,
+                                                                        self.kappa,
+                                                                        self.operator_assembler,
+                                                                        True
+                                                                        )
         elif self.pb_formulation == "direct_external":
             self.matrices["A"] = pb_formulation.formulations.lhs.direct_external(self.dirichl_space,
                                                                                  self.neumann_space,
@@ -135,6 +143,15 @@ class Solute:
                                                                                  self.ep_ex,
                                                                                  self.kappa,
                                                                                  self.operator_assembler
+                                                                                 )
+        elif self.pb_formulation == "direct_external_permuted":
+            self.matrices["A"] = pb_formulation.formulations.lhs.direct_external(self.dirichl_space,
+                                                                                 self.neumann_space,
+                                                                                 self.ep_in,
+                                                                                 self.ep_ex,
+                                                                                 self.kappa,
+                                                                                 self.operator_assembler,
+                                                                                 True
                                                                                  )
         elif self.pb_formulation == "juffer":
             self.matrices["A"] = pb_formulation.formulations.lhs.juffer(self.dirichl_space,
@@ -228,7 +245,7 @@ class Solute:
         # Construct RHS based on the desired formulation
         alpha_beta_type_formulations = ["alpha_beta", "alpha_beta_external_potential",
                                         "alpha_beta_single_blocked_operator"]
-        if self.pb_formulation == "direct":
+        if self.pb_formulation == "direct" or self.pb_formulation == "direct_external_permuted":
             self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.direct(self.dirichl_space,
                                                                                           self.neumann_space,
                                                                                           self.q,
@@ -236,7 +253,7 @@ class Solute:
                                                                                           self.ep_in,
                                                                                           self.rhs_constructor
                                                                                           )
-        elif self.pb_formulation == "direct_external":
+        elif self.pb_formulation == "direct_external" or self.pb_formulation == "direct_permuted":
             self.rhs["rhs_1"], self.rhs["rhs_2"] = pb_formulation.formulations.rhs.direct_external(self.dirichl_space,
                                                                                                    self.neumann_space,
                                                                                                    self.q,
