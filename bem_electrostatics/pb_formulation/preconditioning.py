@@ -102,7 +102,7 @@ def block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kap
     if permuted_rows:
         diag11 = .5 * identity_diag - dlp_out_diag
         diag12 = (ep_in / ep_ex) * slp_out_diag
-        diag21 = .5 * identity_diag + dlp_in_diagg
+        diag21 = .5 * identity_diag + dlp_in_diag
         diag22 = -slp_in_diag
     else:
         diag11 = .5 * identity_diag + dlp_in_diag
