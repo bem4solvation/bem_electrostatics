@@ -381,6 +381,17 @@ class Solute:
             self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
         self.timings["time_preconditioning"] = time.time() - preconditioning_start_time
 
+    def pass_to_discrete_form(self):
+        # Pass matrix A to discrete form (either strong or weak)
+        matrix_discrete_start_time = time.time()
+        self.matrices["A_discrete"] = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
+        self.rhs["rhs_discrete"] = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
+
+        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
+            self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * A_discrete
+            self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * rhs_discrete
+        self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
+
     def calculate_potential(self, rerun_all = False):
         # Start the overall timing for the whole process
         start_time = time.time()
@@ -389,6 +400,8 @@ class Solute:
             self.initialise_matrices()
             self.initialise_rhs()
             self.apply_preconditioning()
+            self.pass_to_discrete_form()
+
         else:
             if "A" not in self.matrices:
                 # If matrix A doesn't exist, it must first be created
@@ -396,33 +409,27 @@ class Solute:
             if "rhs_1" not in self.matrices:
                 # If rhs_1 doesn't exist, it must first be created
                 self.initialise_rhs()
-            if "A_final" not in self.matrices and "rhs_final" not in self.rhs:
+            if "A_final" not in self.matrices or "rhs_final" not in self.rhs:
                 # See if preconditioning needs to be applied if this hasn't been done
                 self.apply_preconditioning()
+            if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
+                # See if discrete form has been called
+                self.pass_to_discrete_form()
 
-        # Pass matrix A to discrete form (either strong or weak)
-        matrix_discrete_start_time = time.time()
-        A_discrete = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
-        rhs_discrete = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
-
-        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
-            A_discrete = self.matrices["preconditioning_matrix"] * A_discrete
-            rhs_discrete = self.matrices["preconditioning_matrix"] * rhs_discrete
-        self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
         if self.pb_formulation_preconditioning and self.pb_formulation_preconditioning_type == "block_diagonal":
-            x, info, it_count = utils.solver(A_discrete,
-                                             rhs_discrete,
+            x, info, it_count = utils.solver(self.matrices["A_discrete"],
+                                             self.rhs["rhs_discrete"],
                                              self.gmres_tolerance,
                                              self.gmres_restart,
                                              self.gmres_max_iterations,
                                              precond=self.matrices["preconditioning_matrix"]
                                              )
         else:
-            x, info, it_count = utils.solver(A_discrete,
-                                             rhs_discrete,
+            x, info, it_count = utils.solver(self.matrices["A_discrete"],
+                                             self.rhs["rhs_discrete"],
                                              self.gmres_tolerance,
                                              self.gmres_restart,
                                              self.gmres_max_iterations
