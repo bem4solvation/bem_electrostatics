@@ -388,8 +388,8 @@ class Solute:
         self.rhs["rhs_discrete"] = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
 
         if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
-            self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * A_discrete
-            self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * rhs_discrete
+            self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * self.matrices["A_discrete"]
+            self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_discrete"]
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
     def calculate_potential(self, rerun_all = False):
