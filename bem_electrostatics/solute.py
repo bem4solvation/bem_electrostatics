@@ -97,7 +97,7 @@ class Solute:
         self.discrete_form_type = "strong"
 
         self.gmres_tolerance = 1e-5
-        self.gmres_restart = 20
+        self.gmres_restart = 1000
         self.gmres_max_iterations = 1000
 
         self.operator_assembler = 'dense'
@@ -239,6 +239,7 @@ class Solute:
             raise ValueError('Unrecognised formulation type for matrix construction: %s' % self.pb_formulation)
         self.timings["time_matrix_initialisation"] = time.time() - start_time
 
+
     def initialise_rhs(self):
         rhs_start_time = time.time()  # Start the timing for the rhs initialisation
 
@@ -323,6 +324,7 @@ class Solute:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time
 
+
     def apply_preconditioning(self):
         preconditioning_start_time = time.time()
 
@@ -381,6 +383,7 @@ class Solute:
             self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
         self.timings["time_preconditioning"] = time.time() - preconditioning_start_time
 
+
     def pass_to_discrete_form(self):
         # Pass matrix A to discrete form (either strong or weak)
         matrix_discrete_start_time = time.time()
@@ -391,6 +394,7 @@ class Solute:
             self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * self.matrices["A_discrete"]
             self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_discrete"]
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
+
 
     def calculate_potential(self, rerun_all = False):
         # Start the overall timing for the whole process
@@ -460,6 +464,7 @@ class Solute:
         # Print times, if this is desired
         if self.print_times:
             show_potential_calculation_times(self)
+
 
     def calculate_solvation_energy(self, rerun_all = False):
         if rerun_all:
