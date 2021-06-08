@@ -240,6 +240,12 @@ class Solute:
         self.timings["time_matrix_initialisation"] = time.time() - start_time
 
 
+    def assemble_matrices(self):
+        start_assembly = time.time()
+        self.matrices["A"].weak_form()
+        self.timings["time_matrix_assembly"] = time.time() - start_assembly
+
+
     def initialise_rhs(self):
         rhs_start_time = time.time()  # Start the timing for the rhs initialisation
 
@@ -377,10 +383,21 @@ class Solute:
             else:
                 raise ValueError('Unrecognised preconditioning type.')
 
-        # Set variables for system of equations if no preconditioning is to applied
+        # Set variables for system of equations if no preconditioning is to be applied
         else:
             self.matrices["A_final"] = self.matrices["A"]
             self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+
+        # Pass matrix A to discrete form (either strong or weak)
+        matrix_discrete_start_time = time.time()
+        self.matrices["A_discrete"] = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
+        self.rhs["rhs_discrete"] = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
+
+        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
+            self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * self.matrices["A_discrete"]
+            self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_discrete"]
+        self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
+
         self.timings["time_preconditioning"] = time.time() - preconditioning_start_time
 
 
@@ -402,23 +419,26 @@ class Solute:
 
         if rerun_all:
             self.initialise_matrices()
+            self.assemble_matrices()
             self.initialise_rhs()
             self.apply_preconditioning()
-            self.pass_to_discrete_form()
+            #self.pass_to_discrete_form()
 
         else:
             if "A" not in self.matrices:
                 # If matrix A doesn't exist, it must first be created
-                self.initialise_matrices()
+                self.initialise_lhs()
+            if not self.matrices["A"]._cached:
+                self.assemble_matrices()
             if "rhs_1" not in self.matrices:
                 # If rhs_1 doesn't exist, it must first be created
                 self.initialise_rhs()
             if "A_final" not in self.matrices or "rhs_final" not in self.rhs:
                 # See if preconditioning needs to be applied if this hasn't been done
                 self.apply_preconditioning()
-            if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
-                # See if discrete form has been called
-                self.pass_to_discrete_form()
+            #if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
+             #   # See if discrete form has been called
+              #  self.pass_to_discrete_form()
 
 
         # Use GMRES to solve the system of equations
