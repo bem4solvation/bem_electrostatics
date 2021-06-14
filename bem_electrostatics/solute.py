@@ -11,7 +11,7 @@ import bem_electrostatics.utils as utils
 class Solute:
     """The basic Solute object
 
-    This object holds all the solute information and allows for a easy way to hold the data"""
+    This object holds all the solute information and allows for an easy way to hold the data"""
 
     def __init__(self,
                  solute_file_path,
@@ -427,7 +427,7 @@ class Solute:
         else:
             if "A" not in self.matrices:
                 # If matrix A doesn't exist, it must first be created
-                self.initialise_lhs()
+                self.initialise_matrices()
             if not self.matrices["A"]._cached:
                 self.assemble_matrices()
             if "rhs_1" not in self.matrices:
