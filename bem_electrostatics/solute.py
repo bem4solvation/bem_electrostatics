@@ -430,7 +430,7 @@ class Solute:
                 self.initialise_matrices()
             if not self.matrices["A"]._cached:
                 self.assemble_matrices()
-            if "rhs_1" not in self.matrices:
+            if "rhs_1" not in self.rhs:
                 # If rhs_1 doesn't exist, it must first be created
                 self.initialise_rhs()
             if "A_final" not in self.matrices or "rhs_final" not in self.rhs:
