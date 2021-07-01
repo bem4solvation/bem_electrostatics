@@ -433,7 +433,7 @@ class Solute:
             if "rhs_1" not in self.rhs:
                 # If rhs_1 doesn't exist, it must first be created
                 self.initialise_rhs()
-            if "A_final" not in self.matrices or "rhs_final" not in self.rhs:
+            if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
                 # See if preconditioning needs to be applied if this hasn't been done
                 self.apply_preconditioning()
             #if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
