@@ -82,7 +82,7 @@ def juffer_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
     return preconditioner
 
 def block_diagonal_precon_direct_test(solute):
-    from scipy.sparse import bmat
+    from scipy.sparse import diags, bmat
     from scipy.sparse.linalg import aslinearoperator
 
     block1 = solute.matrices['A'][0, 0]
