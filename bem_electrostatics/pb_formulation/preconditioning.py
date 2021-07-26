@@ -143,7 +143,7 @@ def first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
         range_ops[index, index] = get_inverse_mass_matrix(matrix.range_spaces[index],
                                                           matrix.dual_to_range_spaces[index])
 
-    range_ops[0, 0] = range_ops[0, 0] * (1.0 / (0.25+(ep_in/(4.0*ep_ex))))(1.0 / (0.25 + (ep_ex/(4.0*ep_in))))
+    range_ops[0, 0] = range_ops[0, 0] * (1.0 / (0.25+(ep_in/(4.0*ep_ex))))
     range_ops[1, 1] = range_ops[1, 1] * (1.0 / (0.25 + (ep_ex/(4.0*ep_in))))
 
     preconditioner = BlockedDiscreteOperator(range_ops)
