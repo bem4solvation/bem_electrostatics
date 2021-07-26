@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def calderon(A, interior_op, exterior_op, interior_projector, scaled_exterior_projector, formulation,
              preconditioning_type):
     if formulation == "alpha_beta":
@@ -43,6 +44,36 @@ def first_kind(A, preconditioning_type, dirichl_space, neumann_space, ep_in, ep_
     return A_conditioner
 
 
+def calderon_scaled_mass(preconditioning_type, dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+    import bem_electrostatics.pb_formulation.formulations.lhs as lhs
+    if preconditioning_type == "calderon_scaled_interior_operator":
+        preconditioner = lhs.laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
+        preconditioner_with_mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex,
+                                                                   preconditioner) * preconditioner.weak_form()
+    elif preconditioning_type == "calderon_scaled_exterior_operator":
+        preconditioner = lhs.mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
+        preconditioner_with_mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex,
+                                                                   preconditioner) * preconditioner.weak_form()
+    elif preconditioning_type == "calderon_scaled_interior_operator_scaled":
+        scaling_factors = [[1.0, (ep_ex / ep_in)],
+                       [(ep_in / ep_ex), 1.0]]
+        preconditioner = lhs.laplace_multitrace_scaled(dirichl_space, neumann_space, scaling_factors,
+                                                       operator_assembler)
+        preconditioner_with_mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex,
+                                                                   preconditioner) * preconditioner.weak_form()
+    elif preconditioning_type == "calderon_scaled_exterior_operator_scaled":
+        scaling_factors = [[1.0, (ep_in / ep_ex)],
+                       [(ep_ex / ep_in), 1.0]]
+        preconditioner = lhs.mod_helm_multitrace_scaled(dirichl_space, neumann_space, kappa, scaling_factors,
+                                                        operator_assembler)
+        preconditioner_with_mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex,
+                                                                   preconditioner) * preconditioner.weak_form()
+    else:
+        raise ValueError('Calderon preconditioning type not recognised.')
+
+    return preconditioner_with_mass
+
+
 def block_diagonal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, formulation_type, alpha, beta):
     if formulation_type == "direct":
         preconditioner = block_diagonal_precon_direct(dirichl_space, neumann_space, ep_in, ep_ex, kappa)
@@ -74,12 +105,51 @@ def juffer_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
         range_ops[index, index] = get_inverse_mass_matrix(matrix.range_spaces[index],
                                                           matrix.dual_to_range_spaces[index])
 
-    range_ops[0,0] = range_ops[0,0] * (1.0 / (0.5 * (1.0 + (ep_ex/ep_in))))
-    range_ops[1,1] =range_ops[1,1] * (1.0/(0.5*(1.0+(ep_in/ep_ex))))
+    range_ops[0, 0] = range_ops[0, 0] * (1.0 / (0.5 * (1.0 + (ep_ex/ep_in))))
+    range_ops[1, 1] = range_ops[1, 1] * (1.0 / (0.5*(1.0+(ep_in/ep_ex))))
 
     preconditioner = BlockedDiscreteOperator(range_ops)
 
     return preconditioner
+
+
+def first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
+    from bempp.api.utils.helpers import get_inverse_mass_matrix
+    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+
+    nrows = len(matrix.range_spaces)
+    range_ops = np.empty((nrows, nrows), dtype="O")
+
+    for index in range(nrows):
+        range_ops[index, index] = get_inverse_mass_matrix(matrix.range_spaces[index],
+                                                          matrix.dual_to_range_spaces[index])
+
+    range_ops[0, 0] = range_ops[0, 0] * (1.0 / (0.25 + (ep_ex/(4.0*ep_in))))
+    range_ops[1, 1] = range_ops[1, 1] * (1.0 / (0.25+(ep_in/(4.0*ep_ex))))
+
+    preconditioner = BlockedDiscreteOperator(range_ops)
+
+    return preconditioner
+
+
+def first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex, matrix):
+    from bempp.api.utils.helpers import get_inverse_mass_matrix
+    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+
+    nrows = len(matrix.range_spaces)
+    range_ops = np.empty((nrows, nrows), dtype="O")
+
+    for index in range(nrows):
+        range_ops[index, index] = get_inverse_mass_matrix(matrix.range_spaces[index],
+                                                          matrix.dual_to_range_spaces[index])
+
+    range_ops[0, 0] = range_ops[0, 0] * (1.0 / (0.25+(ep_in/(4.0*ep_ex))))(1.0 / (0.25 + (ep_ex/(4.0*ep_in))))
+    range_ops[1, 1] = range_ops[1, 1] * (1.0 / (0.25 + (ep_ex/(4.0*ep_in))))
+
+    preconditioner = BlockedDiscreteOperator(range_ops)
+
+    return preconditioner
+
 
 def block_diagonal_precon_direct_test(solute):
     from scipy.sparse import diags, bmat
@@ -90,7 +160,7 @@ def block_diagonal_precon_direct_test(solute):
     block3 = solute.matrices['A'][1, 0]
     block4 = solute.matrices['A'][1, 1]
 
-    diag11 = block1._op1._alpha * block1._op1._op.weak_form().to_sparse().diagonal() +\
+    diag11 = block1._op1._alpha * block1._op1._op.weak_form().to_sparse().diagonal() + \
              block1._op2.descriptor.singular_part.weak_form().to_sparse().diagonal()
     diag12 = block2._alpha * block2._op.descriptor.singular_part.weak_form().to_sparse().diagonal()
     diag21 = block3._op1._alpha * block3._op1._op.weak_form().to_sparse().diagonal() +\

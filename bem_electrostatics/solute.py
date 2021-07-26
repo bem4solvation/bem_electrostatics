@@ -171,7 +171,7 @@ class Solute:
                                                                   self.pb_formulation_beta,
                                                                   self.operator_assembler
                                                                   )
-            self.matrices["A"], self.matrices["A_in"], self.matrices["A_ex"], self.matrices["interior_projector"],\
+            self.matrices["A"], self.matrices["A_in"], self.matrices["A_ex"], self.matrices["interior_projector"], \
             self.matrices["scaled_exterior_projector"] = matrices
         elif self.pb_formulation == "alpha_beta_external_potential":
             matrices = pb_formulation.formulations.lhs.alpha_beta_external(self.dirichl_space,
@@ -239,12 +239,10 @@ class Solute:
             raise ValueError('Unrecognised formulation type for matrix construction: %s' % self.pb_formulation)
         self.timings["time_matrix_initialisation"] = time.time() - start_time
 
-
     def assemble_matrices(self):
         start_assembly = time.time()
         self.matrices["A"].weak_form()
         self.timings["time_matrix_assembly"] = time.time() - start_assembly
-
 
     def initialise_rhs(self):
         rhs_start_time = time.time()  # Start the timing for the rhs initialisation
@@ -330,14 +328,14 @@ class Solute:
             raise ValueError('Unrecognised formulation type for RHS construction: %s' % self.pb_formulation)
         self.timings["time_rhs_construction"] = time.time() - rhs_start_time
 
-
     def apply_preconditioning(self):
         preconditioning_start_time = time.time()
 
         # Check to see if preconditioning is to be applied
         if self.pb_formulation_preconditioning:
             if self.pb_formulation_preconditioning_type.startswith("calderon"):
-                if self.pb_formulation.startswith("first_kind"):
+                if self.pb_formulation.startswith("first_kind") and \
+                        not self.pb_formulation_preconditioning_type.startswith("calderon_scaled"):
                     self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.first_kind(self.matrices["A"],
                                                                                                         self.pb_formulation_preconditioning_type,
                                                                                                         self.dirichl_space,
@@ -385,6 +383,18 @@ class Solute:
                                                                                                             )
                 self.matrices["A_final"] = self.matrices["A"]
                 self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
+            elif self.pb_formulation_preconditioning_type == "calderon_scaled_mass":
+                self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon_scaled_mass(
+                    self.pb_formulation_preconditioning_type,
+                    self.dirichl_space,
+                    self.neumann_space,
+                    self.ep_in,
+                    self.ep_ex,
+                    self.kappa,
+                    self.operator_assembler
+                )
+                self.matrices["A_final"] = self.matrices["A"]
+                self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
             else:
                 raise ValueError('Unrecognised preconditioning type.')
 
@@ -398,13 +408,14 @@ class Solute:
         self.matrices["A_discrete"] = matrix_to_discrete_form(self.matrices["A_final"], self.discrete_form_type)
         self.rhs["rhs_discrete"] = rhs_to_discrete_form(self.rhs["rhs_final"], self.discrete_form_type, self.matrices["A"])
 
-        if self.pb_formulation_preconditioning_type == "juffer_scaled_mass" and self.pb_formulation_preconditioning:
+        if (self.pb_formulation_preconditioning_type == "juffer_scaled_mass" or
+            self.pb_formulation_preconditioning_type.startswith("calderon_scaled")) and \
+                self.pb_formulation_preconditioning:
             self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * self.matrices["A_discrete"]
             self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_discrete"]
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
 
         self.timings["time_preconditioning"] = time.time() - preconditioning_start_time
-
 
     def pass_to_discrete_form(self):
         # Pass matrix A to discrete form (either strong or weak)
@@ -416,7 +427,6 @@ class Solute:
             self.matrices["A_discrete"] = self.matrices["preconditioning_matrix"] * self.matrices["A_discrete"]
             self.rhs["rhs_discrete"] = self.matrices["preconditioning_matrix"] * self.rhs["rhs_discrete"]
         self.timings["time_matrix_to_discrete"] = time.time() - matrix_discrete_start_time
-
 
     def calculate_potential(self, rerun_all = False):
         # Start the overall timing for the whole process
@@ -441,14 +451,13 @@ class Solute:
             if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
                 # See if preconditioning needs to be applied if this hasn't been done
                 self.apply_preconditioning()
-            #if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
-             #   # See if discrete form has been called
-              #  self.pass_to_discrete_form()
-
+            # if "A_discrete" not in self.matrices or "rhs_discrete" not in self.rhs:
+            #   # See if discrete form has been called
+            #  self.pass_to_discrete_form()
 
         # Use GMRES to solve the system of equations
         gmres_start_time = time.time()
-        if self.pb_formulation_preconditioning and (self.pb_formulation_preconditioning_type == "block_diagonal" or \
+        if self.pb_formulation_preconditioning and (self.pb_formulation_preconditioning_type == "block_diagonal" or
                 self.pb_formulation_preconditioning_type == "block_diagonal_test"):
             x, info, it_count = utils.solver(self.matrices["A_discrete"],
                                              self.rhs["rhs_discrete"],
@@ -490,7 +499,6 @@ class Solute:
         # Print times, if this is desired
         if self.print_times:
             show_potential_calculation_times(self)
-
 
     def calculate_solvation_energy(self, rerun_all = False):
         if rerun_all:
