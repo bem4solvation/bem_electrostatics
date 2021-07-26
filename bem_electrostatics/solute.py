@@ -333,7 +333,8 @@ class Solute:
 
         # Check to see if preconditioning is to be applied
         if self.pb_formulation_preconditioning:
-            if self.pb_formulation_preconditioning_type.startswith("calderon"):
+            if self.pb_formulation_preconditioning_type.startswith("calderon") and \
+                    not self.pb_formulation_preconditioning_type.startswith("calderon_scaled"):
                 if self.pb_formulation.startswith("first_kind") and \
                         not self.pb_formulation_preconditioning_type.startswith("calderon_scaled"):
                     self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.first_kind(self.matrices["A"],
