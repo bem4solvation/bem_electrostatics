@@ -17,7 +17,7 @@ def calderon(A, interior_op, exterior_op, interior_projector, scaled_exterior_pr
         else:
             raise ValueError('Calderon preconditioning type not recognised.')
     else:
-        raise ValueError('Calderon precondionting only implemented for alpha_beta formulation')
+        raise ValueError('Calderon preconditioning only implemented for alpha_beta formulation')
         
     return A_conditioner
 
@@ -44,30 +44,34 @@ def first_kind(A, preconditioning_type, dirichl_space, neumann_space, ep_in, ep_
     return A_conditioner
 
 
-def calderon_scaled_mass(preconditioning_type, dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
+def calderon_scaled_mass(preconditioning_type, formulation_type, dirichl_space, neumann_space, ep_in, ep_ex, kappa,
+                         operator_assembler):
     import bem_electrostatics.pb_formulation.formulations.lhs as lhs
+
+    def mass_matrix():
+        if formulation_type.startswith("calderon_scaled_interior"):
+            mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex, preconditioner)
+        else:
+            mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex, preconditioner)
+
+        return mass
+
     if preconditioning_type == "calderon_scaled_interior_operator":
         preconditioner = lhs.laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
-        preconditioner_with_mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex,
-                                                                   preconditioner) * preconditioner.weak_form()
+        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
     elif preconditioning_type == "calderon_scaled_exterior_operator":
         preconditioner = lhs.mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
-        preconditioner_with_mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex,
-                                                                   preconditioner) * preconditioner.weak_form()
+        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
     elif preconditioning_type == "calderon_scaled_interior_operator_scaled":
-        scaling_factors = [[1.0, (ep_ex / ep_in)],
-                       [(ep_in / ep_ex), 1.0]]
+        scaling_factors = [[1.0, (ep_ex / ep_in)], [(ep_in / ep_ex), 1.0]]
         preconditioner = lhs.laplace_multitrace_scaled(dirichl_space, neumann_space, scaling_factors,
                                                        operator_assembler)
-        preconditioner_with_mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex,
-                                                                   preconditioner) * preconditioner.weak_form()
+        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
     elif preconditioning_type == "calderon_scaled_exterior_operator_scaled":
-        scaling_factors = [[1.0, (ep_in / ep_ex)],
-                       [(ep_ex / ep_in), 1.0]]
+        scaling_factors = [[1.0, (ep_in / ep_ex)], [(ep_ex / ep_in), 1.0]]
         preconditioner = lhs.mod_helm_multitrace_scaled(dirichl_space, neumann_space, kappa, scaling_factors,
                                                         operator_assembler)
-        preconditioner_with_mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex,
-                                                                   preconditioner) * preconditioner.weak_form()
+        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
     else:
         raise ValueError('Calderon preconditioning type not recognised.')
 

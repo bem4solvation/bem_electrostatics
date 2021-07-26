@@ -387,6 +387,7 @@ class Solute:
             elif self.pb_formulation_preconditioning_type.startswith("calderon_scaled"):
                 self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon_scaled_mass(
                     self.pb_formulation_preconditioning_type,
+                    self.pb_formulation,
                     self.dirichl_space,
                     self.neumann_space,
                     self.ep_in,
