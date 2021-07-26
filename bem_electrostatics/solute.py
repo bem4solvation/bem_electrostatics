@@ -384,7 +384,7 @@ class Solute:
                                                                                                             )
                 self.matrices["A_final"] = self.matrices["A"]
                 self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
-            elif self.pb_formulation_preconditioning_type == "calderon_scaled_mass":
+            elif self.pb_formulation_preconditioning_type.startswith("calderon_scaled"):
                 self.matrices["preconditioning_matrix"] = pb_formulation.preconditioning.calderon_scaled_mass(
                     self.pb_formulation_preconditioning_type,
                     self.dirichl_space,
