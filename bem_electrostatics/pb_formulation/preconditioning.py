@@ -51,7 +51,7 @@ def calderon_scaled_mass(preconditioning_type, formulation_type, dirichl_space, 
     def mass_matrix():
         if formulation_type.startswith("first_kind_internal"):
             mass = first_kind_interior_scaled_mass(dirichl_space, ep_in, ep_ex, preconditioner)
-        elif formulation_type.startswith("first_kind_exterior"):
+        elif formulation_type.startswith("first_kind_external"):
             mass = first_kind_exterior_scaled_mass(dirichl_space, ep_in, ep_ex, preconditioner)
         else:
             raise ValueError('Calderon preconditioning type not recognised.')
