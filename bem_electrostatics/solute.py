@@ -395,7 +395,9 @@ class Solute:
                     self.ep_in,
                     self.ep_ex,
                     self.kappa,
-                    self.operator_assembler
+                    self.operator_assembler,
+                    self.matrices["A_int"],
+                    self.matrices["A_ext"]
                 )
                 self.matrices["A_final"] = self.matrices["A"]
                 self.rhs["rhs_final"] = [self.rhs["rhs_1"], self.rhs["rhs_2"]]
