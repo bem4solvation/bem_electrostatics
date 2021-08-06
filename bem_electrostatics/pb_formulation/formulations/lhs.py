@@ -301,7 +301,19 @@ def first_kind_internal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, opera
     A[1, 0] = hlp_in + (ep*hlp_ex)
     A[1, 1] = adlp_in + adlp_ex
 
-    return A
+    calderon_int = bempp.api.BlockedOperator(2, 2)
+    calderon_int[0, 0] = -1.0*dlp_in
+    calderon_int[0, 1] = slp_in
+    calderon_int[1, 0] = hlp_in
+    calderon_int[1, 1] = adlp_in
+
+    calderon_ext_scal = bempp.api.BlockedOperator(2, 2)
+    calderon_ext_scal[0, 0] = -1.0*dlp_ex
+    calderon_ext_scal[0, 1] = (1.0/ep)*slp_ex
+    calderon_ext_scal[1, 0] = ep*hlp_ex
+    calderon_ext_scal[1, 1] = adlp_ex
+
+    return A, calderon_int, calderon_ext_scal
 
 
 def first_kind_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):
@@ -327,7 +339,19 @@ def first_kind_external(dirichl_space, neumann_space, ep_in, ep_ex, kappa, opera
     A[1, 0] = hlp_ex + ((1.0/ep) * hlp_in)
     A[1, 1] = adlp_ex + adlp_in
 
-    return A
+    calderon_int_scal = bempp.api.BlockedOperator(2, 2)
+    calderon_int_scal[0, 0] = -1.0 * dlp_in
+    calderon_int_scal[0, 1] = ep * slp_in
+    calderon_int_scal[1, 0] = (1.0/ep) * hlp_in
+    calderon_int_scal[1, 1] = adlp_in
+
+    calderon_ext = bempp.api.BlockedOperator(2, 2)
+    calderon_ext[0, 0] = -1.0 * dlp_ex
+    calderon_ext[0, 1] = slp_ex
+    calderon_ext[1, 0] = hlp_ex
+    calderon_ext[1, 1] = adlp_ex
+
+    return A, calderon_int_scal, calderon_ext
 
 
 def muller_internal(dirichl_space, neumann_space, ep_in, ep_ex, kappa, operator_assembler):

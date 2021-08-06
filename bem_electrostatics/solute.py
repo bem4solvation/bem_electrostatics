@@ -204,21 +204,23 @@ class Solute:
                                                                     self.operator_assembler
                                                                     )
         elif self.pb_formulation == "first_kind_internal":
-            self.matrices["A"] = pb_formulation.formulations.lhs.first_kind_internal(self.dirichl_space,
-                                                                                     self.neumann_space,
-                                                                                     self.ep_in,
-                                                                                     self.ep_ex,
-                                                                                     self.kappa,
-                                                                                     self.operator_assembler
-                                                                                     )
+            self.matrices["A"], self.matrices["A_int"], self.matrices["A_ext"] = pb_formulation.formulations.\
+                lhs.first_kind_internal(self.dirichl_space,
+                                        self.neumann_space,
+                                        self.ep_in,
+                                        self.ep_ex,
+                                        self.kappa,
+                                        self.operator_assembler
+                                        )
         elif self.pb_formulation == "first_kind_external":
-            self.matrices["A"] = pb_formulation.formulations.lhs.first_kind_external(self.dirichl_space,
-                                                                                     self.neumann_space,
-                                                                                     self.ep_in,
-                                                                                     self.ep_ex,
-                                                                                     self.kappa,
-                                                                                     self.operator_assembler
-                                                                                     )
+            self.matrices["A"], self.matrices["A_int"], self.matrices["A_ext"] = pb_formulation.formulations.\
+                lhs.first_kind_external(self.dirichl_space,
+                                        self.neumann_space,
+                                        self.ep_in,
+                                        self.ep_ex,
+                                        self.kappa,
+                                        self.operator_assembler
+                                        )
         elif self.pb_formulation == "muller_internal":
             self.matrices["A"] = pb_formulation.formulations.lhs.muller_internal(self.dirichl_space,
                                                                                  self.neumann_space,

@@ -45,7 +45,7 @@ def first_kind(A, preconditioning_type, dirichl_space, neumann_space, ep_in, ep_
 
 
 def calderon_scaled_mass(preconditioning_type, formulation_type, dirichl_space, neumann_space, ep_in, ep_ex, kappa,
-                         operator_assembler):
+                         operator_assembler, calderon_int, calderon_ext):
     import bem_electrostatics.pb_formulation.formulations.lhs as lhs
 
     def mass_matrix():
@@ -61,11 +61,11 @@ def calderon_scaled_mass(preconditioning_type, formulation_type, dirichl_space, 
         return mass
 
     if preconditioning_type == "calderon_scaled_interior_operator":
-        preconditioner = lhs.laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
-        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
+        # preconditioner = lhs.laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
+        preconditioner_with_mass = mass_matrix() * calderon_int.weak_form()
     elif preconditioning_type == "calderon_scaled_exterior_operator":
-        preconditioner = lhs.mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
-        preconditioner_with_mass = mass_matrix() * preconditioner.weak_form()
+        # preconditioner = lhs.mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
+        preconditioner_with_mass = mass_matrix() * calderon_ext.weak_form()
     elif preconditioning_type == "calderon_scaled_interior_operator_scaled":
         scaling_factors = [[1.0, (ep_ex / ep_in)], [(ep_in / ep_ex), 1.0]]
         preconditioner = lhs.laplace_multitrace_scaled(dirichl_space, neumann_space, scaling_factors,
