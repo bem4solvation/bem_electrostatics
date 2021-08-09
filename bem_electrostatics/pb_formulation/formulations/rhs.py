@@ -2,6 +2,7 @@ import numpy as np
 import bempp.api
 import os
 
+
 def direct(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
     if rhs_constructor == "fmm":
         @bempp.api.callable(vectorized=True)
@@ -15,12 +16,15 @@ def direct(dirichl_space, neumann_space, q, x_q, ep_in, rhs_constructor):
             os.remove('.rhs.tmp')
             result[:] = values[:, 0] / ep_in
 
-        @bempp.api.real_callable
-        def zero(x, n, domain_index, result):
-            result[0] = 0
+        # @bempp.api.real_callable
+        # def zero(x, n, domain_index, result):
+        #     result[0] = 0
+
+        coefs = np.zeros(neumann_space.global_dof_count)
 
         rhs_1 = bempp.api.GridFunction(dirichl_space, fun=fmm_green_func)
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+        # rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+        rhs_2 = bempp.api.GridFunction(neumann_space, coefficients=coefs)
 
     else:
         @bempp.api.real_callable
