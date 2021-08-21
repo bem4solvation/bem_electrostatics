@@ -1,0 +1,4 @@
+include MANIFEST.in
+
+graft bem_electrostatics
+global-exclude *.py[cod] __pycache__ *.so
