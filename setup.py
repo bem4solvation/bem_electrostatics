@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='bem_electrostatics',
-    version='',
+    version='0.1',
     packages=['bem_electrostatics', 'bem_electrostatics.utils', 'bem_electrostatics.openmm',
               'bem_electrostatics.mesh_tools', 'bem_electrostatics.pb_formulation',
               'bem_electrostatics.pb_formulation.formulations'],
