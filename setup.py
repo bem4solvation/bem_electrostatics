@@ -10,5 +10,6 @@ setup(
     license='',
     author='Stefan',
     author_email='stefan.search.14@sansano.usm.cl',
-    description='Python library for use with the bempp-cl library, for the solving of the PB implicit solvent model using BEM.'
+    description='Python library for use with the bempp-cl library, for the solving of the PB implicit solvent model using BEM.',
+    include_package_data=True,
 )
