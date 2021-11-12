@@ -7,7 +7,7 @@ bem_electrostatics library, for use with the bempp-cl library, for solving the P
 ## Installation:
 
 ```
-pip install git+https://github.com/SDSearch/bem_electrostatics.git@master
+pip install git+https://github.com/bem4solvation/bem_electrostatics.git@master
 ```
 
 ### Copyright
